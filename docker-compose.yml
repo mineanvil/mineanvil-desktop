@@ -1,0 +1,22 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    working_dir: /work
+    volumes:
+      - ./:/work
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - MINEANVIL_DEBUG=1
+
+  tool:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    working_dir: /work
+    volumes:
+      - ./:/work
+    entrypoint: ["bash", "-lc"]
