@@ -20,4 +20,15 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  // Electron code is Windows-only and runs in Node/Electron contexts.
+  // This override prevents false-positive `no-undef` for `process`, `__dirname`, etc.
+  {
+    files: ['electron/src/**/*.ts'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
 ])
