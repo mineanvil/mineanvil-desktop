@@ -4,26 +4,18 @@ import viteLogo from '/vite.svg'
 import './App.css'
 import { getMineAnvilApi } from './bridge/mineanvil'
 import type { AuthStatus, MineAnvilApi } from '../electron/src/shared/ipc-types'
+import { buildDiagnosticsBundle, downloadDiagnosticsJson } from './diagnostics/export'
+import { getRendererLogger } from './logging/renderer'
 
 function App() {
   const [count, setCount] = useState(0)
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [isFetchingStatus, setIsFetchingStatus] = useState<boolean>(false)
+  const [tab, setTab] = useState<'home' | 'diagnostics'>('home')
 
   const api = useMemo(() => getMineAnvilApi(), [])
-
-  const logInfo = useCallback((message: string, meta?: Record<string, unknown>) => {
-    console.info(
-      JSON.stringify({
-        ts: new Date().toISOString(),
-        level: 'info',
-        area: 'renderer',
-        message,
-        meta,
-      }),
-    )
-  }, [])
+  const logger = useMemo(() => getRendererLogger('ui'), [])
 
   const fetchStatus = useCallback(
     async (reason: 'initial' | 'refresh') => {
@@ -32,16 +24,16 @@ function App() {
       try {
         const status = await api.authGetStatus()
         setAuthStatus(status)
-        logInfo('auth status fetched', { reason, signedIn: status.signedIn })
+        logger.info('auth status fetched', { reason, signedIn: status.signedIn })
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         setStatusError(msg)
-        logInfo('auth status fetch failed', { reason, error: msg })
+        logger.info('auth status fetch failed', { reason, error: msg })
       } finally {
         setIsFetchingStatus(false)
       }
     },
-    [api, logInfo],
+    [api, logger],
   )
 
   useEffect(() => {
@@ -62,10 +54,34 @@ function App() {
       </div>
       <h1>Vite + React</h1>
       <div className="card">
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
+          <button onClick={() => setTab('home')} disabled={tab === 'home'}>
+            Home
+          </button>
+          <button onClick={() => setTab('diagnostics')} disabled={tab === 'diagnostics'}>
+            Diagnostics
+          </button>
+        </div>
+
+        {tab === 'diagnostics' ? (
+          <div>
+            <p>Export a diagnostics bundle for support.</p>
+            <button
+              onClick={() => {
+                const bundle = buildDiagnosticsBundle()
+                logger.info('diagnostics export clicked', { ts: bundle.app.timestamp })
+                downloadDiagnosticsJson(bundle)
+              }}
+            >
+              Download diagnostics.json
+            </button>
+          </div>
+        ) : (
+          <>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
           <button
             onClick={() => {
-              logInfo('auth status refresh clicked')
+              logger.info('auth status refresh clicked')
               void fetchStatus('refresh')
             }}
             disabled={isFetchingStatus}
@@ -144,6 +160,8 @@ function App() {
         <p>
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>
+          </>
+        )}
       </div>
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
