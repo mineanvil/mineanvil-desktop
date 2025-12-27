@@ -14,6 +14,8 @@ function App() {
   const [isFetchingStatus, setIsFetchingStatus] = useState<boolean>(false)
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false)
   const [signInMessage, setSignInMessage] = useState<string | null>(null)
+  const [isSigningOut, setIsSigningOut] = useState<boolean>(false)
+  const [signOutMessage, setSignOutMessage] = useState<string | null>(null)
   const [tab, setTab] = useState<'home' | 'diagnostics'>('home')
 
   const api = useMemo(() => getMineAnvilApi(), [])
@@ -103,6 +105,36 @@ function App() {
               </p>
               <p>Display name: {authStatus.displayName ?? '(unknown)'}</p>
               <p>UUID: {authStatus.uuid ?? '(unknown)'}</p>
+              {typeof authStatus.expiresAt === 'number' ? <p>Expires at: {authStatus.expiresAt}</p> : null}
+              <button
+                onClick={() => {
+                  void (async () => {
+                    setIsSigningOut(true)
+                    setSignOutMessage(null)
+                    logger.info('auth sign-out clicked')
+                    try {
+                      const res = await api.authSignOut()
+                      if (res.ok) {
+                        setSignOutMessage('Signed out.')
+                        logger.info('auth sign-out result', { ok: true })
+                        await fetchStatus('refresh')
+                      } else {
+                        setSignOutMessage(res.error ?? 'Sign-out failed.')
+                        logger.info('auth sign-out result', { ok: false })
+                      }
+                    } catch (err) {
+                      const msg = err instanceof Error ? err.message : String(err)
+                      setSignOutMessage(msg)
+                      logger.info('auth sign-out threw', { error: msg })
+                    } finally {
+                      setIsSigningOut(false)
+                    }
+                  })()
+                }}
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? 'Signing out…' : 'Sign out'}
+              </button>
             </div>
           ) : (
             <div>
@@ -146,6 +178,7 @@ function App() {
         )}
 
         {signInMessage ? <p style={{ marginTop: 12 }}>Sign-in: {signInMessage}</p> : null}
+        {signOutMessage ? <p style={{ marginTop: 12 }}>Sign-out: {signOutMessage}</p> : null}
 
         <button onClick={() => setCount((count) => count + 1)}>
           count is {count}

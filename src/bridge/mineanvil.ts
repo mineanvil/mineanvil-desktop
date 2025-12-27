@@ -17,10 +17,14 @@ function createBrowserStub(): MineAnvilApi {
 
   return {
     ping: async (): Promise<PingResult> => ({ ok: true, ts: Date.now() }),
-    authGetStatus: async (): Promise<AuthStatus> => browserAuthStatus,
+    authGetStatus: async (): Promise<AuthStatus> => ({ signedIn: false }),
     authSignIn: async () => ({
       ok: false,
       error: "authSignIn is only available in Electron on Windows",
+    }),
+    authSignOut: async () => ({
+      ok: false,
+      error: "authSignOut is only available in Electron on Windows",
     }),
     // Dev-only escape hatch for browser mode. Not part of the public API contract.
     __dev: {

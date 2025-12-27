@@ -18,6 +18,7 @@ import http from "node:http";
 import https from "node:https";
 import { URL } from "node:url";
 import { isVerboseEnabled, type Logger, createLogger, type LogEntry } from "../../shared/logging";
+import { saveTokens, type StoredTokens } from "./tokenStore";
 
 export interface AuthResult {
   readonly token_type: string;
@@ -277,12 +278,34 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
       throw new Error("Invalid token response");
     }
 
+    const obtainedAt = Date.now();
+    const expiresAt = obtainedAt + expires_in * 1000 - 30_000; // 30s safety margin
+
     logger.info("oauth token exchange success", {
       hasAccessToken: true,
       hasRefreshToken: Boolean(refresh_token),
       expiresIn: expires_in,
       tokenType: token_type,
     });
+
+    const stored: StoredTokens = {
+      access_token,
+      refresh_token: refresh_token ?? "",
+      token_type,
+      scope,
+      obtained_at: obtainedAt,
+      expires_at: expiresAt,
+    };
+
+    await saveTokens(stored);
+    logger.info("tokens saved", { expires_at: expiresAt });
+    if (isVerboseEnabled(process.env)) {
+      logger.debug("token metadata", {
+        hasAccessToken: true,
+        hasRefreshToken: Boolean(refresh_token),
+        expiresAt,
+      });
+    }
 
     return {
       token_type,

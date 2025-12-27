@@ -13,6 +13,7 @@ export const IPC_CHANNELS = {
   ping: "mineanvil:ping",
   authGetStatus: "mineanvil:authGetStatus",
   authSignIn: "mineanvil:authSignIn",
+  authSignOut: "mineanvil:authSignOut",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -33,6 +34,8 @@ export interface AuthStatus {
   readonly displayName?: string;
   /** Minecraft UUID or account identifier (non-secret). */
   readonly uuid?: string;
+  /** Token expiry (epoch ms). Optional; for debugging only. */
+  readonly expiresAt?: number;
 }
 
 export interface AuthSignInResult {
@@ -53,6 +56,9 @@ export interface MineAnvilApi {
 
   /** Start interactive sign-in (Electron/Windows only). */
   authSignIn(): Promise<AuthSignInResult>;
+
+  /** Sign out (Electron/Windows only). */
+  authSignOut(): Promise<AuthSignInResult>;
 }
 
 declare global {
