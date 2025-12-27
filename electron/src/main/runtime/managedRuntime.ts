@@ -14,11 +14,11 @@
  */
 
 import { app } from "electron";
-import crypto from "node:crypto";
-import fs from "node:fs/promises";
+import * as crypto from "node:crypto";
+import * as fs from "node:fs/promises";
 import { createWriteStream } from "node:fs";
-import https from "node:https";
-import path from "node:path";
+import * as https from "node:https";
+import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { URL } from "node:url";
 import type { RuntimeDescriptor } from "../../core/types";

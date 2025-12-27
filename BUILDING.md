@@ -4,12 +4,16 @@
 
 Renderer (browser mode):
 
-- Run: `docker compose up dev`
+- Run: `docker compose up --build dev`
 - Open: `http://localhost:5173`
 
 Notes:
 - Electron is Windows-only for this project; it will not run on macOS here.
 - All installs happen inside the container (`npm ci`).
+
+Electron build (TypeScript compile only):
+
+- Run: `docker compose run --rm electron-build`
 
 ## Windows (native Electron)
 

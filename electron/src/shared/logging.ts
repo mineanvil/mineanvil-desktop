@@ -49,7 +49,7 @@ export interface Logger {
  * - In Electron/Node: pass `process.env` (or an object with MINEANVIL_DEBUG)
  * - In the browser: pass `{ MINEANVIL_DEBUG: "1" }` from your own config source
  */
-export function isVerboseEnabled(env?: { MINEANVIL_DEBUG?: string | undefined }): boolean {
+export function isVerboseEnabled(env?: Record<string, string | undefined>): boolean {
   return env?.MINEANVIL_DEBUG === "1";
 }
 

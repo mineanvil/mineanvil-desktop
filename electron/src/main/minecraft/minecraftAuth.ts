@@ -9,7 +9,7 @@
  * - Verbose logging gated by MINEANVIL_DEBUG=1.
  */
 
-import https from "node:https";
+import * as https from "node:https";
 import { URL } from "node:url";
 import { createLogger, isVerboseEnabled, type LogEntry, type Logger } from "../../shared/logging";
 

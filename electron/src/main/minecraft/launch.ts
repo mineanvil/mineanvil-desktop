@@ -9,9 +9,9 @@
  * - Never log tokens (we use placeholder token "0" for now).
  */
 
-import fs from "node:fs/promises";
+import * as fs from "node:fs/promises";
 import { createWriteStream } from "node:fs";
-import path from "node:path";
+import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { ensureDefaultInstance } from "../instances/instances";
 import { resolveJavaRuntimePreferManaged } from "../runtime/runtime";
@@ -214,9 +214,9 @@ export async function launchVanilla(params: {
       for (const line of s.split(/\r?\n/g)) if (line) pushLine(line);
     });
 
-    let exited: { code: number | null; signal: NodeJS.Signals | null } | null = null;
-    child.on("close", (code, signal) => {
-      exited = { code, signal };
+    let exitCode: number | null = null;
+    child.on("exit", (code) => {
+      exitCode = code;
       out.end();
     });
 
@@ -224,8 +224,9 @@ export async function launchVanilla(params: {
 
     // Detect immediate failure (e.g., missing DLL) before returning success.
     await new Promise((r) => setTimeout(r, 800));
-    if (exited && (exited.code ?? 0) !== 0) {
-      return { ok: false, error: `Java exited early (code ${exited.code ?? "?"})\n${lastLines.join("\n")}` };
+    const code = exitCode;
+    if (code !== null && code !== 0) {
+      return { ok: false, error: `Java exited early (code ${code})\n${lastLines.join("\n")}` };
     }
 
     return { ok: true, pid: child.pid };

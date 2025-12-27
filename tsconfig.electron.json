@@ -2,10 +2,10 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
-    "verbatimModuleSyntax": true,
+    "verbatimModuleSyntax": false,
     "moduleDetection": "force",
     "strict": true,
     "skipLibCheck": true,
@@ -15,7 +15,8 @@
 
     "rootDir": "./electron/src",
     "outDir": "./electron/dist",
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["node"]
   },
   "include": ["electron/src/**/*.ts"],
   "exclude": ["src", "dist", "node_modules"]

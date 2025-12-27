@@ -13,9 +13,9 @@
  */
 
 import { shell } from "electron";
-import crypto from "node:crypto";
-import http from "node:http";
-import https from "node:https";
+import * as crypto from "node:crypto";
+import * as http from "node:http";
+import * as https from "node:https";
 import { URL } from "node:url";
 import { isVerboseEnabled, type Logger, createLogger, type LogEntry } from "../../shared/logging";
 import { saveTokens, type StoredTokens } from "./tokenStore";
@@ -292,9 +292,11 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
 
     logger.info("opening system browser for oauth", { hasClientId: Boolean(OAUTH.clientId), scopes: OAUTH.scopes });
 
-    const opened = await shell.openExternal(authorizeUrl.toString());
-    if (!opened) {
-      logger.warn("shell.openExternal returned false");
+    try {
+      await shell.openExternal(authorizeUrl.toString());
+    } catch (e) {
+      logger.warn("shell.openExternal failed", { error: e instanceof Error ? e.message : String(e) });
+      throw new Error("Failed to open system browser for sign-in");
     }
 
     const cb = await server.waitForCode();

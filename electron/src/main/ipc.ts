@@ -31,6 +31,8 @@ export function registerIpcHandlers(): void {
         return { signedIn: false, expiresAt: tokens.expires_at } as const;
       }
 
+      const prevExpiresAt = tokens.expires_at;
+
       try {
         const refreshed = await refreshMicrosoftAccessToken({ refreshToken: tokens.refresh_token });
         const obtainedAt = Date.now();
@@ -46,9 +48,10 @@ export function registerIpcHandlers(): void {
         });
 
         tokens = await loadTokens();
+        if (!tokens) return { signedIn: false } as const;
       } catch {
         // Conservative: treat as signed out if refresh fails.
-        return { signedIn: false, expiresAt: tokens.expires_at } as const;
+        return { signedIn: false, expiresAt: prevExpiresAt } as const;
       }
     }
 

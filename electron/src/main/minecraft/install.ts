@@ -9,8 +9,8 @@
  * This is intentionally "minimal but correct" for vanilla.
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { fetchVersionJson, resolveVersion } from "./metadata";
 import { downloadToFile } from "../net/downloader";

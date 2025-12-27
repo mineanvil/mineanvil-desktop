@@ -10,7 +10,7 @@
 
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import path from "node:path";
+import * as path from "node:path";
 import type { RuntimeDescriptor } from "../../core/types";
 import { DEFAULT_RUNTIME_MANIFEST, ensureManagedRuntime } from "./managedRuntime";
 

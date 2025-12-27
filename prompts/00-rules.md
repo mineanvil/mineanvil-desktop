@@ -7,6 +7,10 @@ You are modifying a MineAnvil desktop application.
 - Renderer must run in a normal browser via Vite.
 - Electron runs only on Windows machines.
 
+## Development Environment Rules
+- We are developing on a mac usign Docker
+- On macOS: never run npm on host. Use docker compose tool/electron-build
+
 ## Architectural Rules
 1. Renderer code MUST run without Electron present.
 2. Electron-specific code MUST live under `electron/src/**`.
@@ -26,6 +30,7 @@ You are modifying a MineAnvil desktop application.
 - List files changed.
 - Ask the human to confirm commit OR execute an explicit commit prompt.
 - Never auto-commit unless explicitly instructed via a commit prompt.
+
 
 ## Constraints
 - Do NOT introduce new frameworks without explicit instruction.

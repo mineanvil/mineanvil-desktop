@@ -8,11 +8,11 @@
  * No auth headers used; never log tokens.
  */
 
-import crypto from "node:crypto";
-import fs from "node:fs/promises";
+import * as crypto from "node:crypto";
+import * as fs from "node:fs/promises";
 import { createWriteStream } from "node:fs";
-import https from "node:https";
-import path from "node:path";
+import * as https from "node:https";
+import * as path from "node:path";
 import { Readable } from "node:stream";
 import { URL } from "node:url";
 import { createLogger, isVerboseEnabled, type LogEntry, type Logger } from "../../shared/logging";
