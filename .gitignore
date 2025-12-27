@@ -2,6 +2,9 @@ node_modules/
 dist/
 release/
 .npm-cache/
-.DS_Store
+.vite/
+.cache/
+*.log
 .env
 .env.*
+.DS_Store
