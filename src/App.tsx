@@ -19,6 +19,12 @@ function App() {
   const [launchPlanJson, setLaunchPlanJson] = useState<string | null>(null)
   const [launchPlanError, setLaunchPlanError] = useState<string | null>(null)
   const [isLoadingLaunchPlan, setIsLoadingLaunchPlan] = useState<boolean>(false)
+  const [runtimeStatusJson, setRuntimeStatusJson] = useState<string | null>(null)
+  const [runtimeStatusError, setRuntimeStatusError] = useState<string | null>(null)
+  const [isCheckingRuntime, setIsCheckingRuntime] = useState<boolean>(false)
+  const [ensureRuntimeJson, setEnsureRuntimeJson] = useState<string | null>(null)
+  const [ensureRuntimeError, setEnsureRuntimeError] = useState<string | null>(null)
+  const [isEnsuringRuntime, setIsEnsuringRuntime] = useState<boolean>(false)
   const [tab, setTab] = useState<'home' | 'diagnostics'>('home')
 
   const api = useMemo(() => getMineAnvilApi(), [])
@@ -83,6 +89,77 @@ function App() {
               Download diagnostics.json
             </button>
             <div style={{ marginTop: 16 }}>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    void (async () => {
+                      setIsCheckingRuntime(true)
+                      setRuntimeStatusError(null)
+                      logger.info('getRuntimeStatus clicked')
+                      try {
+                        const res = await api.getRuntimeStatus()
+                        if (res.ok) {
+                          setRuntimeStatusJson(JSON.stringify(res, null, 2))
+                          logger.info('getRuntimeStatus success', { installed: res.installed })
+                        } else {
+                          const msg = res.error ?? 'Failed to get runtime status.'
+                          setRuntimeStatusError(msg)
+                          logger.info('getRuntimeStatus failure', { ok: false })
+                        }
+                      } catch (err) {
+                        const msg = err instanceof Error ? err.message : String(err)
+                        setRuntimeStatusError(msg)
+                        logger.info('getRuntimeStatus threw', { error: msg })
+                      } finally {
+                        setIsCheckingRuntime(false)
+                      }
+                    })()
+                  }}
+                  disabled={isCheckingRuntime}
+                >
+                  {isCheckingRuntime ? 'Checking…' : 'Check runtime status'}
+                </button>
+                <button
+                  onClick={() => {
+                    void (async () => {
+                      setIsEnsuringRuntime(true)
+                      setEnsureRuntimeError(null)
+                      logger.info('ensureRuntime clicked')
+                      try {
+                        const res = await api.ensureRuntime()
+                        if (res.ok && res.runtime) {
+                          setEnsureRuntimeJson(JSON.stringify(res, null, 2))
+                          logger.info('ensureRuntime success', { kind: res.runtime.kind })
+                        } else {
+                          const msg = res.error ?? 'Failed to ensure runtime.'
+                          setEnsureRuntimeError(msg)
+                          logger.info('ensureRuntime failure', { ok: false })
+                        }
+                      } catch (err) {
+                        const msg = err instanceof Error ? err.message : String(err)
+                        setEnsureRuntimeError(msg)
+                        logger.info('ensureRuntime threw', { error: msg })
+                      } finally {
+                        setIsEnsuringRuntime(false)
+                      }
+                    })()
+                  }}
+                  disabled={isEnsuringRuntime}
+                >
+                  {isEnsuringRuntime ? 'Installing…' : 'Install runtime (Windows)'}
+                </button>
+              </div>
+
+              {runtimeStatusError ? <p style={{ color: 'crimson' }}>{runtimeStatusError}</p> : null}
+              {runtimeStatusJson ? (
+                <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{runtimeStatusJson}</pre>
+              ) : null}
+
+              {ensureRuntimeError ? <p style={{ color: 'crimson' }}>{ensureRuntimeError}</p> : null}
+              {ensureRuntimeJson ? (
+                <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{ensureRuntimeJson}</pre>
+              ) : null}
+
               <button
                 onClick={() => {
                   void (async () => {

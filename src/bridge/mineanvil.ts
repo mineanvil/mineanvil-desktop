@@ -31,6 +31,15 @@ function createBrowserStub(): BrowserStubApi {
       ok: false,
       error: "getLaunchPlan is only available in Electron on Windows",
     }),
+    ensureRuntime: async () => ({
+      ok: false,
+      error: "ensureRuntime is only available in Electron on Windows",
+    }),
+    getRuntimeStatus: async () => ({
+      ok: false,
+      installed: false,
+      error: "getRuntimeStatus is only available in Electron on Windows",
+    }),
     // Dev-only escape hatch for browser mode. Not part of the public API contract.
     __dev: {
       setAuthStatus: (status: AuthStatus) => {

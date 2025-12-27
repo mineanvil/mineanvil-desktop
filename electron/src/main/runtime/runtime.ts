@@ -12,6 +12,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import type { RuntimeDescriptor } from "../../core/types";
+import { DEFAULT_RUNTIME_MANIFEST, ensureManagedRuntime } from "./managedRuntime";
 
 function truncate(s: string, max = 800): string {
   if (s.length <= max) return s;
@@ -73,6 +74,27 @@ export async function resolveJavaRuntime(): Promise<RuntimeDescriptor> {
     javaPath: found,
     javaVersion,
   };
+}
+
+/**
+ * Prefer a managed runtime first (Windows x64 only), then fall back to PATH java.
+ *
+ * This allows MineAnvil to work on machines without a system Java install.
+ */
+export async function resolveJavaRuntimePreferManaged(): Promise<RuntimeDescriptor> {
+  let managedError: string | null = null;
+  try {
+    return await ensureManagedRuntime(DEFAULT_RUNTIME_MANIFEST);
+  } catch (e) {
+    managedError = e instanceof Error ? e.message : String(e);
+  }
+
+  try {
+    return await resolveJavaRuntime();
+  } catch (e) {
+    const fallbackError = e instanceof Error ? e.message : String(e);
+    throw new Error(`Managed runtime failed: ${managedError}; PATH java failed: ${fallbackError}`);
+  }
 }
 
 

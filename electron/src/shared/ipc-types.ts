@@ -9,7 +9,7 @@
  * - Types only; no runtime side effects.
  */
 
-import type { LaunchPlan } from "../core/types";
+import type { LaunchPlan, RuntimeDescriptor } from "../core/types";
 
 export const IPC_CHANNELS = {
   ping: "mineanvil:ping",
@@ -17,6 +17,8 @@ export const IPC_CHANNELS = {
   authSignIn: "mineanvil:authSignIn",
   authSignOut: "mineanvil:authSignOut",
   getLaunchPlan: "mineanvil:getLaunchPlan",
+  ensureRuntime: "mineanvil:ensureRuntime",
+  getRuntimeStatus: "mineanvil:getRuntimeStatus",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -54,6 +56,19 @@ export interface GetLaunchPlanResult {
   readonly error?: string;
 }
 
+export interface EnsureRuntimeResult {
+  readonly ok: boolean;
+  readonly runtime?: RuntimeDescriptor;
+  readonly error?: string;
+}
+
+export interface GetRuntimeStatusResult {
+  readonly ok: boolean;
+  readonly installed: boolean;
+  readonly runtime?: RuntimeDescriptor;
+  readonly error?: string;
+}
+
 /**
  * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
  * The renderer should never import from `electron` directly.
@@ -73,6 +88,12 @@ export interface MineAnvilApi {
 
   /** Build a dry-run launch plan (Electron/Windows only). */
   getLaunchPlan(): Promise<GetLaunchPlanResult>;
+
+  /** Ensure a managed/runtime is available (Electron/Windows only). */
+  ensureRuntime(): Promise<EnsureRuntimeResult>;
+
+  /** Check whether managed runtime is installed (Electron/Windows only). */
+  getRuntimeStatus(): Promise<GetRuntimeStatusResult>;
 }
 
 declare global {

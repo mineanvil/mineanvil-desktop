@@ -7,11 +7,11 @@
 
 import type { LaunchPlan } from "../../core/types";
 import { ensureDefaultInstance } from "../instances/instances";
-import { resolveJavaRuntime } from "../runtime/runtime";
+import { resolveJavaRuntimePreferManaged } from "../runtime/runtime";
 
 export async function buildLaunchPlan(): Promise<LaunchPlan> {
   const instance = await ensureDefaultInstance();
-  const runtime = await resolveJavaRuntime();
+  const runtime = await resolveJavaRuntimePreferManaged();
 
   const notes: string[] = [];
   notes.push(`instancePath=${instance.path}`);

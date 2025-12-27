@@ -22,6 +22,8 @@ const api: MineAnvilApi = {
   authSignIn: async () => ipcRenderer.invoke(IPC_CHANNELS.authSignIn),
   authSignOut: async () => ipcRenderer.invoke(IPC_CHANNELS.authSignOut),
   getLaunchPlan: async () => ipcRenderer.invoke(IPC_CHANNELS.getLaunchPlan),
+  ensureRuntime: async () => ipcRenderer.invoke(IPC_CHANNELS.ensureRuntime),
+  getRuntimeStatus: async () => ipcRenderer.invoke(IPC_CHANNELS.getRuntimeStatus),
 };
 
 contextBridge.exposeInMainWorld("mineanvil", api);

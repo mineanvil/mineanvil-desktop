@@ -12,6 +12,8 @@ import { clearTokens, loadTokens, saveTokens } from "./auth/tokenStore";
 import { getMinecraftAccessToken } from "./minecraft/minecraftAuth";
 import { checkJavaOwnership, getEntitlements, getProfile } from "./minecraft/minecraftServices";
 import { buildLaunchPlan } from "./launch/dryrun";
+import { resolveJavaRuntimePreferManaged } from "./runtime/runtime";
+import { DEFAULT_RUNTIME_MANIFEST, getManagedRuntimeStatus } from "./runtime/managedRuntime";
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
@@ -102,6 +104,26 @@ export function registerIpcHandlers(): void {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return { ok: false, error: msg } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.ensureRuntime, async () => {
+    try {
+      const runtime = await resolveJavaRuntimePreferManaged();
+      return { ok: true, runtime } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: msg } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.getRuntimeStatus, async () => {
+    try {
+      const status = await getManagedRuntimeStatus(DEFAULT_RUNTIME_MANIFEST);
+      return { ok: true, installed: status.installed, runtime: status.runtime } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, installed: false, error: msg } as const;
     }
   });
 }
