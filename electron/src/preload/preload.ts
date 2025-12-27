@@ -14,10 +14,11 @@
  */
 
 import { contextBridge, ipcRenderer } from "electron";
-import { IPC_CHANNELS, type RendererApi } from "../shared/ipc-types";
+import { IPC_CHANNELS, type MineAnvilApi } from "../shared/ipc-types";
 
-const api: RendererApi = {
+const api: MineAnvilApi = {
   ping: async () => ipcRenderer.invoke(IPC_CHANNELS.ping),
+  authGetStatus: async () => ipcRenderer.invoke(IPC_CHANNELS.authGetStatus),
 };
 
 contextBridge.exposeInMainWorld("mineanvil", api);

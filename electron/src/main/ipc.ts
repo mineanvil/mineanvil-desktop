@@ -9,7 +9,10 @@ import { ipcMain } from "electron";
 import { IPC_CHANNELS } from "../shared/ipc-types";
 
 export function registerIpcHandlers(): void {
-  ipcMain.handle(IPC_CHANNELS.ping, async () => "pong");
+  ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
+  ipcMain.handle(IPC_CHANNELS.authGetStatus, async () => ({
+    signedIn: false,
+  }));
 }
 
 

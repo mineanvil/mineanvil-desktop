@@ -1,10 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
+import { getMineAnvilApi } from './bridge/mineanvil'
 
 function App() {
   const [count, setCount] = useState(0)
+  const [ping, setPing] = useState<string>('(not called)')
+  const [authStatus, setAuthStatus] = useState<string>('(not checked)')
+
+  useEffect(() => {
+    // Minimal smoke test to prove the bridge works in both browser + Electron.
+    void (async () => {
+      const api = getMineAnvilApi();
+      const res = await api.ping();
+      setPing(res.ok ? `ok @ ${new Date(res.ts).toISOString()}` : 'not ok');
+
+      const status = await api.authGetStatus();
+      setAuthStatus(status.signedIn ? `signed in as ${status.displayName ?? '(unknown)'}` : 'signed out');
+    })();
+  }, [])
 
   return (
     <>
@@ -21,6 +36,8 @@ function App() {
         <button onClick={() => setCount((count) => count + 1)}>
           count is {count}
         </button>
+        <p>mineanvil.ping(): {ping}</p>
+        <p>mineanvil.authGetStatus(): {authStatus}</p>
         <p>
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>

@@ -11,6 +11,7 @@
 
 export const IPC_CHANNELS = {
   ping: "mineanvil:ping",
+  authGetStatus: "mineanvil:authGetStatus",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -19,9 +20,30 @@ export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
  * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
  * The renderer should never import from `electron` directly.
  */
-export interface RendererApi {
+export interface PingResult {
+  readonly ok: boolean;
+  /** Unix epoch millis. */
+  readonly ts: number;
+}
+
+export interface AuthStatus {
+  readonly signedIn: boolean;
+  /** Display name (non-secret). */
+  readonly displayName?: string;
+  /** Minecraft UUID or account identifier (non-secret). */
+  readonly uuid?: string;
+}
+
+/**
+ * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
+ * The renderer should never import from `electron` directly.
+ */
+export interface MineAnvilApi {
   /** Test call to validate wiring. */
-  ping(): Promise<string>;
+  ping(): Promise<PingResult>;
+
+  /** Retrieve basic auth/session status for UI gating. */
+  authGetStatus(): Promise<AuthStatus>;
 }
 
 declare global {
@@ -32,7 +54,7 @@ declare global {
      * NOTE: The renderer may still run in a normal browser (Vite dev), where
      * this object will be absent until we add a browser-safe adapter later.
      */
-    mineanvil?: RendererApi;
+    mineanvil?: MineAnvilApi;
   }
 }
 
