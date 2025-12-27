@@ -45,8 +45,9 @@ async function loadRenderer(win: BrowserWindow): Promise<void> {
    */
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 
-  if (devServerUrl) {
-    await win.loadURL(devServerUrl);
+  // Dev: default to local Vite port unless overridden.
+  if (!app.isPackaged) {
+    await win.loadURL(devServerUrl ?? "http://localhost:5173");
     return;
   }
 

@@ -8,4 +8,4 @@ RUN apt-get update && apt-get install -y \
 
 ENV npm_config_cache=/work/.npm-cache
 
-CMD ["bash", "-lc", "npm install && npm run dev -- --host 0.0.0.0 --port 5173"]
+CMD ["bash", "-lc", "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"]

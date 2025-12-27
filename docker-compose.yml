@@ -12,6 +12,17 @@ services:
       - NODE_ENV=development
       - MINEANVIL_DEBUG=1
 
+  # Helper service to compile Electron TS inside container (Electron runtime itself is Windows-only).
+  electron-build:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    working_dir: /work
+    volumes:
+      - ./:/work
+    entrypoint: ["bash", "-lc"]
+    command: ["npm ci && npm run build:electron"]
+
   tool:
     build:
       context: .

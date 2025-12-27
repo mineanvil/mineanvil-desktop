@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "start:electron": "electron electron/dist/main/main.js",
+    "dev:electron": "concurrently -k -n VITE,ELECTRON-TS,ELECTRON \"npm run dev\" \"tsc -p tsconfig.electron.json -w\" \"wait-on http://localhost:5173 electron/dist/main/main.js && npm run start:electron\"",
+    "build:all": "npm run build && npm run build:electron",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -19,12 +23,15 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.1.2",
+    "electron": "^33.0.0",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "wait-on": "^8.0.2"
   }
 }
