@@ -106,6 +106,17 @@ function App() {
               <p>Display name: {authStatus.displayName ?? '(unknown)'}</p>
               <p>UUID: {authStatus.uuid ?? '(unknown)'}</p>
               {typeof authStatus.expiresAt === 'number' ? <p>Expires at: {authStatus.expiresAt}</p> : null}
+              {authStatus.minecraftOwned === true ? (
+                <p>
+                  <strong>Minecraft owned</strong>
+                </p>
+              ) : authStatus.minecraftOwned === false ? (
+                <p>
+                  <strong>Minecraft not owned (or not detected yet)</strong> — check on Windows runner later
+                </p>
+              ) : (
+                <p>Minecraft ownership: (unknown)</p>
+              )}
               <button
                 onClick={() => {
                   void (async () => {

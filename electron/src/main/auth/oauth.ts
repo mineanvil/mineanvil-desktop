@@ -139,6 +139,56 @@ async function postForm(url: string, params: Record<string, string>): Promise<un
 }
 
 /**
+ * Refresh Microsoft access token using a refresh token.
+ *
+ * SECURITY:
+ * - Never log tokens.
+ */
+export async function refreshMicrosoftAccessToken(params: {
+  refreshToken: string;
+}): Promise<{
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+  token_type: string;
+  scope?: string;
+}> {
+  const logger = getLogger();
+
+  logger.info("refreshing microsoft access token", { hasRefreshToken: Boolean(params.refreshToken) });
+
+  const tokenJson = (await postForm(OAUTH.tokenEndpoint, {
+    client_id: OAUTH.clientId,
+    grant_type: "refresh_token",
+    refresh_token: params.refreshToken,
+    scope: OAUTH.scopes.join(" "),
+  })) as Record<string, unknown>;
+
+  const access_token = typeof tokenJson.access_token === "string" ? tokenJson.access_token : "";
+  const refresh_token = typeof tokenJson.refresh_token === "string" ? tokenJson.refresh_token : undefined;
+  const expires_in = typeof tokenJson.expires_in === "number" ? tokenJson.expires_in : Number(tokenJson.expires_in);
+  const token_type = typeof tokenJson.token_type === "string" ? tokenJson.token_type : "";
+  const scope = typeof tokenJson.scope === "string" ? tokenJson.scope : undefined;
+
+  if (!access_token || !token_type || !Number.isFinite(expires_in)) {
+    logger.warn("refresh token response missing required fields", {
+      hasAccessToken: Boolean(access_token),
+      hasTokenType: Boolean(token_type),
+      hasExpiresIn: Number.isFinite(expires_in),
+    });
+    throw new Error("Invalid refresh token response");
+  }
+
+  logger.info("microsoft token refresh success", {
+    hasAccessToken: true,
+    hasRefreshToken: Boolean(refresh_token),
+    expiresIn: expires_in,
+  });
+
+  return { access_token, refresh_token, expires_in, token_type, scope };
+}
+
+/**
  * Start Microsoft sign-in flow.
  *
  * Returns an AuthResult containing tokens (DO NOT persist yet; DO NOT log tokens).

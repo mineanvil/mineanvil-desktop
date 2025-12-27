@@ -36,6 +36,8 @@ export interface AuthStatus {
   readonly uuid?: string;
   /** Token expiry (epoch ms). Optional; for debugging only. */
   readonly expiresAt?: number;
+  /** Whether Minecraft: Java is owned (best-effort). */
+  readonly minecraftOwned?: boolean;
 }
 
 export interface AuthSignInResult {
