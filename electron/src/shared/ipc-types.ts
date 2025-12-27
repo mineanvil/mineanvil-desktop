@@ -12,6 +12,7 @@
 export const IPC_CHANNELS = {
   ping: "mineanvil:ping",
   authGetStatus: "mineanvil:authGetStatus",
+  authSignIn: "mineanvil:authSignIn",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -34,6 +35,11 @@ export interface AuthStatus {
   readonly uuid?: string;
 }
 
+export interface AuthSignInResult {
+  readonly ok: boolean;
+  readonly error?: string;
+}
+
 /**
  * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
  * The renderer should never import from `electron` directly.
@@ -44,6 +50,9 @@ export interface MineAnvilApi {
 
   /** Retrieve basic auth/session status for UI gating. */
   authGetStatus(): Promise<AuthStatus>;
+
+  /** Start interactive sign-in (Electron/Windows only). */
+  authSignIn(): Promise<AuthSignInResult>;
 }
 
 declare global {

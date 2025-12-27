@@ -12,6 +12,8 @@ function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [isFetchingStatus, setIsFetchingStatus] = useState<boolean>(false)
+  const [isSigningIn, setIsSigningIn] = useState<boolean>(false)
+  const [signInMessage, setSignInMessage] = useState<string | null>(null)
   const [tab, setTab] = useState<'home' | 'diagnostics'>('home')
 
   const api = useMemo(() => getMineAnvilApi(), [])
@@ -108,11 +110,42 @@ function App() {
                 <strong>Signed out</strong>
               </p>
               <p>Please sign in to continue.</p>
+              <button
+                onClick={() => {
+                  void (async () => {
+                    setIsSigningIn(true)
+                    setSignInMessage(null)
+                    logger.info('auth sign-in clicked')
+                    try {
+                      const res = await api.authSignIn()
+                      if (res.ok) {
+                        setSignInMessage('Sign-in started/completed successfully.')
+                        logger.info('auth sign-in result', { ok: true })
+                        await fetchStatus('refresh')
+                      } else {
+                        setSignInMessage(res.error ?? 'Sign-in failed.')
+                        logger.info('auth sign-in result', { ok: false })
+                      }
+                    } catch (err) {
+                      const msg = err instanceof Error ? err.message : String(err)
+                      setSignInMessage(msg)
+                      logger.info('auth sign-in threw', { error: msg })
+                    } finally {
+                      setIsSigningIn(false)
+                    }
+                  })()
+                }}
+                disabled={isSigningIn}
+              >
+                {isSigningIn ? 'Signing in…' : 'Sign in'}
+              </button>
             </div>
           )
         ) : (
           <p>Loading status…</p>
         )}
+
+        {signInMessage ? <p style={{ marginTop: 12 }}>Sign-in: {signInMessage}</p> : null}
 
         <button onClick={() => setCount((count) => count + 1)}>
           count is {count}
