@@ -19,6 +19,9 @@ export const IPC_CHANNELS = {
   getLaunchPlan: "mineanvil:getLaunchPlan",
   ensureRuntime: "mineanvil:ensureRuntime",
   getRuntimeStatus: "mineanvil:getRuntimeStatus",
+  installVanilla: "mineanvil:installVanilla",
+  getLaunchCommand: "mineanvil:getLaunchCommand",
+  launchVanilla: "mineanvil:launchVanilla",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -69,6 +72,25 @@ export interface GetRuntimeStatusResult {
   readonly error?: string;
 }
 
+export interface InstallVanillaResult {
+  readonly ok: boolean;
+  readonly versionId?: string;
+  readonly notes?: string[];
+  readonly error?: string;
+}
+
+export interface GetLaunchCommandResult {
+  readonly ok: boolean;
+  readonly command?: { javaPath: string; args: string[]; cwd: string };
+  readonly error?: string;
+}
+
+export interface LaunchVanillaResult {
+  readonly ok: boolean;
+  readonly pid?: number;
+  readonly error?: string;
+}
+
 /**
  * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
  * The renderer should never import from `electron` directly.
@@ -94,6 +116,15 @@ export interface MineAnvilApi {
 
   /** Check whether managed runtime is installed (Electron/Windows only). */
   getRuntimeStatus(): Promise<GetRuntimeStatusResult>;
+
+  /** Install vanilla Minecraft for a version (Electron/Windows only). */
+  installVanilla(version: string): Promise<InstallVanillaResult>;
+
+  /** Build the launch command (Electron/Windows only). */
+  getLaunchCommand(version: string): Promise<GetLaunchCommandResult>;
+
+  /** Launch vanilla Minecraft (Electron/Windows only). */
+  launchVanilla(version: string): Promise<LaunchVanillaResult>;
 }
 
 declare global {

@@ -14,6 +14,9 @@ import { checkJavaOwnership, getEntitlements, getProfile } from "./minecraft/min
 import { buildLaunchPlan } from "./launch/dryrun";
 import { resolveJavaRuntimePreferManaged } from "./runtime/runtime";
 import { DEFAULT_RUNTIME_MANIFEST, getManagedRuntimeStatus } from "./runtime/managedRuntime";
+import { ensureDefaultInstance } from "./instances/instances";
+import { ensureVanillaInstalled } from "./minecraft/install";
+import { buildVanillaLaunchCommand, launchVanilla } from "./minecraft/launch";
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
@@ -124,6 +127,37 @@ export function registerIpcHandlers(): void {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return { ok: false, installed: false, error: msg } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.installVanilla, async (_evt, version: string) => {
+    try {
+      const instance = await ensureDefaultInstance();
+      const res = await ensureVanillaInstalled(instance.path, version);
+      return { ok: true, versionId: res.versionId, notes: res.notes } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: msg } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.getLaunchCommand, async (_evt, version: string) => {
+    try {
+      const cmd = await buildVanillaLaunchCommand({ versionIdOrLatest: version });
+      return { ok: true, command: { javaPath: cmd.javaPath, args: cmd.args, cwd: cmd.cwd } } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: msg } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.launchVanilla, async (_evt, version: string) => {
+    try {
+      const res = await launchVanilla({ versionIdOrLatest: version });
+      return res;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: msg } as const;
     }
   });
 }

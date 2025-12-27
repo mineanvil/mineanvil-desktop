@@ -24,6 +24,9 @@ const api: MineAnvilApi = {
   getLaunchPlan: async () => ipcRenderer.invoke(IPC_CHANNELS.getLaunchPlan),
   ensureRuntime: async () => ipcRenderer.invoke(IPC_CHANNELS.ensureRuntime),
   getRuntimeStatus: async () => ipcRenderer.invoke(IPC_CHANNELS.getRuntimeStatus),
+  installVanilla: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.installVanilla, version),
+  getLaunchCommand: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.getLaunchCommand, version),
+  launchVanilla: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.launchVanilla, version),
 };
 
 contextBridge.exposeInMainWorld("mineanvil", api);

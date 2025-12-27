@@ -25,6 +25,16 @@ function App() {
   const [ensureRuntimeJson, setEnsureRuntimeJson] = useState<string | null>(null)
   const [ensureRuntimeError, setEnsureRuntimeError] = useState<string | null>(null)
   const [isEnsuringRuntime, setIsEnsuringRuntime] = useState<boolean>(false)
+  const [vanillaVersion, setVanillaVersion] = useState<string>('latest')
+  const [installVanillaJson, setInstallVanillaJson] = useState<string | null>(null)
+  const [installVanillaError, setInstallVanillaError] = useState<string | null>(null)
+  const [isInstallingVanilla, setIsInstallingVanilla] = useState<boolean>(false)
+  const [launchCmdJson, setLaunchCmdJson] = useState<string | null>(null)
+  const [launchCmdError, setLaunchCmdError] = useState<string | null>(null)
+  const [isLoadingLaunchCmd, setIsLoadingLaunchCmd] = useState<boolean>(false)
+  const [launchVanillaJson, setLaunchVanillaJson] = useState<string | null>(null)
+  const [launchVanillaError, setLaunchVanillaError] = useState<string | null>(null)
+  const [isLaunchingVanilla, setIsLaunchingVanilla] = useState<boolean>(false)
   const [tab, setTab] = useState<'home' | 'diagnostics'>('home')
 
   const api = useMemo(() => getMineAnvilApi(), [])
@@ -159,6 +169,125 @@ function App() {
               {ensureRuntimeJson ? (
                 <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{ensureRuntimeJson}</pre>
               ) : null}
+
+              <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+                <p>Vanilla Minecraft (Windows runner)</p>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label>
+                    Version:{' '}
+                    <input
+                      value={vanillaVersion}
+                      onChange={(e) => setVanillaVersion(e.target.value)}
+                      style={{ width: 140 }}
+                      placeholder="latest or 1.21.4"
+                    />
+                  </label>
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+                  <button
+                    onClick={() => {
+                      void (async () => {
+                        setIsInstallingVanilla(true)
+                        setInstallVanillaError(null)
+                        logger.info('installVanilla clicked', { version: vanillaVersion })
+                        try {
+                          const res = await api.installVanilla(vanillaVersion)
+                          if (res.ok) {
+                            setInstallVanillaJson(JSON.stringify(res, null, 2))
+                            logger.info('installVanilla success', { ok: true })
+                          } else {
+                            const msg = res.error ?? 'Install failed.'
+                            setInstallVanillaError(msg)
+                            logger.info('installVanilla failure', { ok: false })
+                          }
+                        } catch (err) {
+                          const msg = err instanceof Error ? err.message : String(err)
+                          setInstallVanillaError(msg)
+                          logger.info('installVanilla threw', { error: msg })
+                        } finally {
+                          setIsInstallingVanilla(false)
+                        }
+                      })()
+                    }}
+                    disabled={isInstallingVanilla}
+                  >
+                    {isInstallingVanilla ? 'Installing…' : 'Install Vanilla (Windows)'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      void (async () => {
+                        setIsLoadingLaunchCmd(true)
+                        setLaunchCmdError(null)
+                        logger.info('getLaunchCommand clicked', { version: vanillaVersion })
+                        try {
+                          const res = await api.getLaunchCommand(vanillaVersion)
+                          if (res.ok && res.command) {
+                            setLaunchCmdJson(JSON.stringify(res.command, null, 2))
+                            logger.info('getLaunchCommand success', { ok: true })
+                          } else {
+                            const msg = res.error ?? 'Failed to get launch command.'
+                            setLaunchCmdError(msg)
+                            logger.info('getLaunchCommand failure', { ok: false })
+                          }
+                        } catch (err) {
+                          const msg = err instanceof Error ? err.message : String(err)
+                          setLaunchCmdError(msg)
+                          logger.info('getLaunchCommand threw', { error: msg })
+                        } finally {
+                          setIsLoadingLaunchCmd(false)
+                        }
+                      })()
+                    }}
+                    disabled={isLoadingLaunchCmd}
+                  >
+                    {isLoadingLaunchCmd ? 'Loading…' : 'Show Launch Command'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      void (async () => {
+                        setIsLaunchingVanilla(true)
+                        setLaunchVanillaError(null)
+                        logger.info('launchVanilla clicked', { version: vanillaVersion })
+                        try {
+                          const res = await api.launchVanilla(vanillaVersion)
+                          if (res.ok) {
+                            setLaunchVanillaJson(JSON.stringify(res, null, 2))
+                            logger.info('launchVanilla success', { ok: true })
+                          } else {
+                            const msg = res.error ?? 'Launch failed.'
+                            setLaunchVanillaError(msg)
+                            logger.info('launchVanilla failure', { ok: false })
+                          }
+                        } catch (err) {
+                          const msg = err instanceof Error ? err.message : String(err)
+                          setLaunchVanillaError(msg)
+                          logger.info('launchVanilla threw', { error: msg })
+                        } finally {
+                          setIsLaunchingVanilla(false)
+                        }
+                      })()
+                    }}
+                    disabled={isLaunchingVanilla}
+                  >
+                    {isLaunchingVanilla ? 'Launching…' : 'Launch Vanilla (Windows)'}
+                  </button>
+                </div>
+
+                {installVanillaError ? <p style={{ color: 'crimson' }}>{installVanillaError}</p> : null}
+                {installVanillaJson ? (
+                  <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{installVanillaJson}</pre>
+                ) : null}
+
+                {launchCmdError ? <p style={{ color: 'crimson' }}>{launchCmdError}</p> : null}
+                {launchCmdJson ? (
+                  <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{launchCmdJson}</pre>
+                ) : null}
+
+                {launchVanillaError ? <p style={{ color: 'crimson' }}>{launchVanillaError}</p> : null}
+                {launchVanillaJson ? (
+                  <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{launchVanillaJson}</pre>
+                ) : null}
+              </div>
 
               <button
                 onClick={() => {
