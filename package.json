@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
-    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:electron": "tsc -p tsconfig.electron.json && node -e \"const fs=require('fs'); fs.mkdirSync('electron/dist',{recursive:true}); fs.copyFileSync('electron/src/dist-package.json','electron/dist/package.json');\"",
     "start:electron": "electron electron/dist/main/main.js",
     "dev:electron": "concurrently -k -n VITE,ELECTRON-TS,ELECTRON \"npm run dev\" \"tsc -p tsconfig.electron.json -w\" \"wait-on http://localhost:5173 electron/dist/main/main.js && npm run start:electron\"",
     "build:all": "npm run build && npm run build:electron",
