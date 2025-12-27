@@ -88,6 +88,50 @@ export interface LaunchResult {
   readonly reason?: string;
 }
 
+/**
+ * InstanceDescriptor
+ *
+ * A concrete instance definition with a real filesystem path.
+ * Implementations decide how instances are created and stored; core only models the shape.
+ */
+export interface InstanceDescriptor {
+  readonly id: string;
+  readonly name: string;
+  /** Filesystem path to the instance root directory. */
+  readonly path: string;
+  readonly minecraftVersion?: string;
+  readonly loader?: string;
+}
+
+/**
+ * RuntimeDescriptor
+ *
+ * A resolved Java runtime to use for launching.
+ */
+export interface RuntimeDescriptor {
+  readonly kind: "system" | "managed";
+  /** Filesystem path to the java executable. */
+  readonly javaPath: string;
+  /** Best-effort version string (e.g., from `java -version`). */
+  readonly javaVersion?: string;
+}
+
+/**
+ * LaunchPlan
+ *
+ * A "dry-run" plan describing how MineAnvil *would* invoke Java for an instance.
+ * This is useful for diagnostics before real Minecraft launching exists.
+ */
+export interface LaunchPlan {
+  readonly instanceId: string;
+  readonly instancePath: string;
+  readonly javaPath: string;
+  readonly args: string[];
+  readonly env: Record<string, string>;
+  /** Human-readable notes for support/diagnostics. */
+  readonly notes: string[];
+}
+
 /** A structured diagnostics payload collected for support/export. */
 export interface DiagnosticsBundle {
   /** ISO timestamp when the bundle was collected. */

@@ -11,6 +11,7 @@ import { refreshMicrosoftAccessToken, startMicrosoftSignIn } from "./auth/oauth"
 import { clearTokens, loadTokens, saveTokens } from "./auth/tokenStore";
 import { getMinecraftAccessToken } from "./minecraft/minecraftAuth";
 import { checkJavaOwnership, getEntitlements, getProfile } from "./minecraft/minecraftServices";
+import { buildLaunchPlan } from "./launch/dryrun";
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
@@ -88,6 +89,16 @@ export function registerIpcHandlers(): void {
     try {
       await clearTokens();
       return { ok: true } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: msg } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.getLaunchPlan, async () => {
+    try {
+      const plan = await buildLaunchPlan();
+      return { ok: true, plan } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return { ok: false, error: msg } as const;

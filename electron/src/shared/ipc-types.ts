@@ -9,11 +9,14 @@
  * - Types only; no runtime side effects.
  */
 
+import type { LaunchPlan } from "../core/types";
+
 export const IPC_CHANNELS = {
   ping: "mineanvil:ping",
   authGetStatus: "mineanvil:authGetStatus",
   authSignIn: "mineanvil:authSignIn",
   authSignOut: "mineanvil:authSignOut",
+  getLaunchPlan: "mineanvil:getLaunchPlan",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -45,6 +48,12 @@ export interface AuthSignInResult {
   readonly error?: string;
 }
 
+export interface GetLaunchPlanResult {
+  readonly ok: boolean;
+  readonly plan?: LaunchPlan;
+  readonly error?: string;
+}
+
 /**
  * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
  * The renderer should never import from `electron` directly.
@@ -61,6 +70,9 @@ export interface MineAnvilApi {
 
   /** Sign out (Electron/Windows only). */
   authSignOut(): Promise<AuthSignInResult>;
+
+  /** Build a dry-run launch plan (Electron/Windows only). */
+  getLaunchPlan(): Promise<GetLaunchPlanResult>;
 }
 
 declare global {

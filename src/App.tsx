@@ -16,6 +16,9 @@ function App() {
   const [signInMessage, setSignInMessage] = useState<string | null>(null)
   const [isSigningOut, setIsSigningOut] = useState<boolean>(false)
   const [signOutMessage, setSignOutMessage] = useState<string | null>(null)
+  const [launchPlanJson, setLaunchPlanJson] = useState<string | null>(null)
+  const [launchPlanError, setLaunchPlanError] = useState<string | null>(null)
+  const [isLoadingLaunchPlan, setIsLoadingLaunchPlan] = useState<boolean>(false)
   const [tab, setTab] = useState<'home' | 'diagnostics'>('home')
 
   const api = useMemo(() => getMineAnvilApi(), [])
@@ -79,6 +82,41 @@ function App() {
             >
               Download diagnostics.json
             </button>
+            <div style={{ marginTop: 16 }}>
+              <button
+                onClick={() => {
+                  void (async () => {
+                    setIsLoadingLaunchPlan(true)
+                    setLaunchPlanError(null)
+                    logger.info('getLaunchPlan clicked')
+                    try {
+                      const res = await api.getLaunchPlan()
+                      if (res.ok && res.plan) {
+                        setLaunchPlanJson(JSON.stringify(res.plan, null, 2))
+                        logger.info('getLaunchPlan success', { ok: true })
+                      } else {
+                        const msg = res.error ?? 'Failed to get launch plan.'
+                        setLaunchPlanError(msg)
+                        logger.info('getLaunchPlan failure', { ok: false })
+                      }
+                    } catch (err) {
+                      const msg = err instanceof Error ? err.message : String(err)
+                      setLaunchPlanError(msg)
+                      logger.info('getLaunchPlan threw', { error: msg })
+                    } finally {
+                      setIsLoadingLaunchPlan(false)
+                    }
+                  })()
+                }}
+                disabled={isLoadingLaunchPlan}
+              >
+                {isLoadingLaunchPlan ? 'Loading…' : 'Show launch plan (dry-run)'}
+              </button>
+              {launchPlanError ? <p style={{ color: 'crimson' }}>{launchPlanError}</p> : null}
+              {launchPlanJson ? (
+                <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 280, overflow: 'auto' }}>{launchPlanJson}</pre>
+              ) : null}
+            </div>
           </div>
         ) : (
           <>
@@ -193,6 +231,16 @@ function App() {
 
         <button onClick={() => setCount((count) => count + 1)}>
           count is {count}
+        </button>
+
+        <button
+          onClick={() => {
+            setTab('diagnostics')
+            logger.info('show launch plan (home) clicked')
+          }}
+          style={{ marginTop: 12 }}
+        >
+          Show launch plan (dry-run)
         </button>
 
         {isBrowserMode ? (
