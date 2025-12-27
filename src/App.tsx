@@ -209,7 +209,7 @@ function App() {
                     displayName: 'Dev Player',
                     uuid: '00000000-0000-0000-0000-000000000000',
                   })
-                  logInfo('dev tool: simulate signed in')
+                  logger.info('dev tool: simulate signed in')
                 }}
               >
                 Simulate signed in
@@ -220,7 +220,7 @@ function App() {
                     __dev?: { setAuthStatus: (status: AuthStatus) => void }
                   }
                   anyApi.__dev?.setAuthStatus({ signedIn: false })
-                  logInfo('dev tool: simulate signed out')
+                  logger.info('dev tool: simulate signed out')
                 }}
               >
                 Simulate signed out
