@@ -145,6 +145,17 @@ export async function startOAuthCallbackListener(expectedState: string): Promise
     server.listen(REDIRECT_PORT, REDIRECT_HOST);
   });
 
+  // Safe log (no secrets): confirm fixed loopback port is bound.
+  console.info(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      level: "info",
+      area: "auth.oauth",
+      message: "loopback server listening",
+      meta: { host: REDIRECT_HOST, port: REDIRECT_PORT, path: REDIRECT_PATH },
+    }),
+  );
+
   return {
     waitForCode,
     close: async () => {
