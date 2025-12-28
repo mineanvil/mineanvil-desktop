@@ -22,78 +22,61 @@ function htmlPage(title: string, body: string): string {
 }
 
 export async function waitForOAuthCallback(expectedState: string): Promise<{ code: string }> {
-  return await new Promise((resolve, reject) => {
-    let handled = false;
+  const listener = await startOAuthCallbackListener(expectedState);
+  try {
+    return await listener.waitForCode;
+  } finally {
+    await listener.close();
+  }
+}
 
-    const server = http.createServer((req, res) => {
-      const finish = (status: number, html: string) => {
-        try {
-          res.writeHead(status, { "Content-Type": "text/html; charset=utf-8" });
-          res.end(html);
-        } finally {
-          if (!handled) handled = true;
-          server.close();
-        }
-      };
+/**
+ * Start the fixed loopback server and return a promise for the first callback.
+ *
+ * IMPORTANT:
+ * - This resolves only after the server is successfully listening.
+ * - If the port is in use, this rejects before callers open the browser.
+ */
+export async function startOAuthCallbackListener(expectedState: string): Promise<{
+  waitForCode: Promise<{ code: string }>;
+  close: () => Promise<void>;
+}> {
+  let done = false;
 
+  let resolveCode!: (v: { code: string }) => void;
+  let rejectCode!: (e: unknown) => void;
+  const waitForCode = new Promise<{ code: string }>((resolve, reject) => {
+    resolveCode = resolve;
+    rejectCode = reject;
+  });
+
+  const server = http.createServer((req, res) => {
+    const finish = (status: number, html: string) => {
       try {
-        const url = new URL(req.url ?? "/", REDIRECT_URI);
-        if (req.method !== "GET" || url.pathname !== REDIRECT_PATH) {
-          finish(404, htmlPage("Not found", "<h1>Not found</h1>"));
-          reject(new Error("Unexpected callback path"));
-          return;
-        }
+        res.writeHead(status, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(html);
+      } catch {
+        // ignore
+      } finally {
+        if (!done) done = true;
+        server.close();
+      }
+    };
 
-        const error = url.searchParams.get("error");
-        const errorDescription = url.searchParams.get("error_description");
-        const state = url.searchParams.get("state");
-        const code = url.searchParams.get("code");
+    try {
+      const url = new URL(req.url ?? "/", REDIRECT_URI);
+      if (req.method !== "GET" || url.pathname !== REDIRECT_PATH) {
+        finish(404, htmlPage("Not found", "<h1>Not found</h1>"));
+        rejectCode(new Error("Unexpected callback path"));
+        return;
+      }
 
-        if (error) {
-          finish(
-            200,
-            htmlPage(
-              "Sign-in failed",
-              "<h1>Sign-in failed</h1><p>You may close this tab and return to MineAnvil.</p>",
-            ),
-          );
-          reject(new Error(`${error}${errorDescription ? `: ${errorDescription}` : ""}`));
-          return;
-        }
+      const error = url.searchParams.get("error");
+      const errorDescription = url.searchParams.get("error_description");
+      const state = url.searchParams.get("state");
+      const code = url.searchParams.get("code");
 
-        if (!code) {
-          finish(
-            200,
-            htmlPage(
-              "Sign-in failed",
-              "<h1>Sign-in failed</h1><p>Missing authorization code. You may close this tab.</p>",
-            ),
-          );
-          reject(new Error("Missing authorization code"));
-          return;
-        }
-
-        if (!state || state !== expectedState) {
-          finish(
-            200,
-            htmlPage(
-              "Sign-in failed",
-              "<h1>Sign-in failed</h1><p>State mismatch. You may close this tab.</p>",
-            ),
-          );
-          reject(new Error("OAuth state mismatch"));
-          return;
-        }
-
-        finish(
-          200,
-          htmlPage(
-            "Sign-in complete",
-            "<h1>Sign-in complete</h1><p>You may close this tab and return to MineAnvil.</p>",
-          ),
-        );
-        resolve({ code });
-      } catch (e) {
+      if (error) {
         finish(
           200,
           htmlPage(
@@ -101,11 +84,57 @@ export async function waitForOAuthCallback(expectedState: string): Promise<{ cod
             "<h1>Sign-in failed</h1><p>You may close this tab and return to MineAnvil.</p>",
           ),
         );
-        reject(e);
+        rejectCode(new Error(`${error}${errorDescription ? `: ${errorDescription}` : ""}`));
+        return;
       }
-    });
 
-    server.on("error", (err: unknown) => {
+      if (!code) {
+        finish(
+          200,
+          htmlPage(
+            "Sign-in failed",
+            "<h1>Sign-in failed</h1><p>Missing authorization code. You may close this tab.</p>",
+          ),
+        );
+        rejectCode(new Error("Missing authorization code"));
+        return;
+      }
+
+      if (!state || state !== expectedState) {
+        finish(
+          200,
+          htmlPage(
+            "Sign-in failed",
+            "<h1>Sign-in failed</h1><p>State mismatch. You may close this tab.</p>",
+          ),
+        );
+        rejectCode(new Error("OAuth state mismatch"));
+        return;
+      }
+
+      finish(
+        200,
+        htmlPage(
+          "Sign-in complete",
+          "<h1>Sign-in complete</h1><p>You may close this tab and return to MineAnvil.</p>",
+        ),
+      );
+      resolveCode({ code });
+    } catch (e) {
+      finish(
+        200,
+        htmlPage(
+          "Sign-in failed",
+          "<h1>Sign-in failed</h1><p>You may close this tab and return to MineAnvil.</p>",
+        ),
+      );
+      rejectCode(e);
+    }
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("listening", resolve);
+    server.once("error", (err: unknown) => {
       const anyErr = err as { code?: unknown };
       if (anyErr?.code === "EADDRINUSE") {
         reject(new Error("Port 53682 is already in use. Close the other app and try again."));
@@ -113,9 +142,17 @@ export async function waitForOAuthCallback(expectedState: string): Promise<{ cod
         reject(new Error("Unable to start local sign-in callback server."));
       }
     });
-
     server.listen(REDIRECT_PORT, REDIRECT_HOST);
   });
+
+  return {
+    waitForCode,
+    close: async () => {
+      if (done) return;
+      done = true;
+      await new Promise<void>((r) => server.close(() => r()));
+    },
+  };
 }
 
 

@@ -20,7 +20,7 @@ import { URL } from "node:url";
 import { isVerboseEnabled, type Logger, createLogger, type LogEntry } from "../../shared/logging";
 import { saveTokens, type StoredTokens } from "./tokenStore";
 import { getMsClientId } from "../config";
-import { REDIRECT_URI, waitForOAuthCallback } from "./loopback";
+import { REDIRECT_URI, startOAuthCallbackListener } from "./loopback";
 
 export interface AuthResult {
   readonly token_type: string;
@@ -200,7 +200,7 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
   const challenge = generatePkceChallengeS256(verifier);
   const state = generateState();
   // Start loopback listener FIRST. If it fails (EADDRINUSE), we do not open the browser.
-  const callbackPromise = waitForOAuthCallback(state);
+  const listener = await startOAuthCallbackListener(state);
 
   try {
     const authorizeUrl = new URL(OAUTH.authorizeEndpoint);
@@ -222,7 +222,7 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
       throw new Error("Failed to open system browser for sign-in");
     }
 
-    const cb = await callbackPromise;
+    const cb = await listener.waitForCode;
 
     logger.info("exchanging auth code for tokens", { hasCode: true });
     const tokenJson = (await postForm(OAUTH.tokenEndpoint, {
@@ -286,7 +286,7 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
       scope,
     };
   } finally {
-    // loopback server closes itself after first callback
+    await listener.close();
   }
 }
 
