@@ -9,10 +9,7 @@
  * - Never log secret values. (MS_CLIENT_ID is not a secret, but still not logged.)
  */
 
-/// <reference path="./dotenv.d.ts" />
-
 import * as path from "node:path";
-import * as dotenv from "dotenv";
 
 const PLACEHOLDER_MS_CLIENT_ID = "YOUR_MICROSOFT_PUBLIC_CLIENT_ID";
 
@@ -35,6 +32,10 @@ export function loadEnvOnce(): void {
   if (!isDev()) return;
 
   try {
+    // Optional dependency: if `dotenv` is not installed, we simply skip loading `.env`.
+    // This avoids crashing the app with "Cannot find module 'dotenv'".
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const dotenv = require("dotenv") as { config: (opts: { path: string }) => unknown };
     dotenv.config({ path: path.resolve(process.cwd(), ".env") });
   } catch {
     // Ignore failures; dev may still provide env vars via shell.
