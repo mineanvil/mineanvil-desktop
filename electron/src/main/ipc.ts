@@ -5,7 +5,7 @@
  * - This file imports `electron` and must only be executed in Electron main.
  */
 
-import { ipcMain } from "electron";
+import { dialog, ipcMain } from "electron";
 import { IPC_CHANNELS } from "../shared/ipc-types";
 import { refreshMicrosoftAccessToken, startMicrosoftSignIn } from "./auth/oauth";
 import { clearTokens, loadTokens, saveTokens } from "./auth/tokenStore";
@@ -18,6 +18,7 @@ import { ensureDefaultInstance } from "./instances/instances";
 import { ensureVanillaInstalled } from "./minecraft/install";
 import { buildVanillaLaunchCommand, launchVanilla } from "./minecraft/launch";
 import { isVerboseEnabled } from "../shared/logging";
+import { getMsClientId } from "./config";
 
 function safeErrorString(err: unknown): { message: string; debug: Record<string, unknown> } {
   const verbose = isVerboseEnabled(process.env);
@@ -120,6 +121,23 @@ export function registerIpcHandlers(): void {
       }),
     );
     try {
+      // Fail-fast for missing configuration. Do not open browser.
+      try {
+        void getMsClientId();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        dialog.showErrorBox("MineAnvil Sign-in", msg);
+        console.error(
+          JSON.stringify({
+            ts: new Date().toISOString(),
+            level: "error",
+            area: "ipc",
+            message: msg,
+          }),
+        );
+        return { ok: false, error: msg } as const;
+      }
+
       await startMicrosoftSignIn();
       return { ok: true } as const;
     } catch (e) {

@@ -18,7 +18,7 @@
     "sourceMap": true,
     "types": ["node"]
   },
-  "include": ["electron/src/**/*.ts"],
+  "include": ["electron/src/**/*.ts", "electron/src/**/*.d.ts"],
   "exclude": ["src", "dist", "node_modules"]
 }
 

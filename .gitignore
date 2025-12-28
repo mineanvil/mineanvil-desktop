@@ -6,5 +6,8 @@ release/
 .cache/
 *.log
 .env
+.env.local
 .env.*
+.env.*.local
+!.env.example
 .DS_Store

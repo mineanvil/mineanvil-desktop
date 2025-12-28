@@ -19,6 +19,7 @@ import * as https from "node:https";
 import { URL } from "node:url";
 import { isVerboseEnabled, type Logger, createLogger, type LogEntry } from "../../shared/logging";
 import { saveTokens, type StoredTokens } from "./tokenStore";
+import { getMsClientId } from "../config";
 
 export interface AuthResult {
   readonly token_type: string;
@@ -31,9 +32,6 @@ export interface AuthResult {
 }
 
 const OAUTH = {
-  // Placeholder - must be replaced with a real public client ID.
-  clientId: "YOUR_MICROSOFT_PUBLIC_CLIENT_ID",
-
   // Consumer tenant (placeholder; adjust later if needed)
   authorizeEndpoint: "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
   tokenEndpoint: "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
@@ -158,7 +156,7 @@ export async function refreshMicrosoftAccessToken(params: {
   logger.info("refreshing microsoft access token", { hasRefreshToken: Boolean(params.refreshToken) });
 
   const tokenJson = (await postForm(OAUTH.tokenEndpoint, {
-    client_id: OAUTH.clientId,
+    client_id: getMsClientId(),
     grant_type: "refresh_token",
     refresh_token: params.refreshToken,
     scope: OAUTH.scopes.join(" "),
@@ -195,6 +193,7 @@ export async function refreshMicrosoftAccessToken(params: {
  */
 export async function startMicrosoftSignIn(): Promise<AuthResult> {
   const logger = getLogger();
+  const msClientId = getMsClientId();
 
   const verifier = generatePkceVerifier();
   const challenge = generatePkceChallengeS256(verifier);
@@ -281,7 +280,7 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
 
   try {
     const authorizeUrl = new URL(OAUTH.authorizeEndpoint);
-    authorizeUrl.searchParams.set("client_id", OAUTH.clientId);
+    authorizeUrl.searchParams.set("client_id", msClientId);
     authorizeUrl.searchParams.set("response_type", "code");
     authorizeUrl.searchParams.set("redirect_uri", server.redirectUri);
     authorizeUrl.searchParams.set("response_mode", "query");
@@ -290,7 +289,7 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
     authorizeUrl.searchParams.set("code_challenge", challenge);
     authorizeUrl.searchParams.set("code_challenge_method", "S256");
 
-    logger.info("opening system browser for oauth", { hasClientId: Boolean(OAUTH.clientId), scopes: OAUTH.scopes });
+    logger.info("opening system browser for oauth", { hasClientId: true, scopes: OAUTH.scopes });
 
     try {
       await shell.openExternal(authorizeUrl.toString());
@@ -307,7 +306,7 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
 
     logger.info("exchanging auth code for tokens", { hasCode: true });
     const tokenJson = (await postForm(OAUTH.tokenEndpoint, {
-      client_id: OAUTH.clientId,
+      client_id: msClientId,
       grant_type: "authorization_code",
       code: cb.code,
       redirect_uri: server.redirectUri,
