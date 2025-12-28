@@ -17,6 +17,31 @@ import { DEFAULT_RUNTIME_MANIFEST, getManagedRuntimeStatus } from "./runtime/man
 import { ensureDefaultInstance } from "./instances/instances";
 import { ensureVanillaInstalled } from "./minecraft/install";
 import { buildVanillaLaunchCommand, launchVanilla } from "./minecraft/launch";
+import { isVerboseEnabled } from "../shared/logging";
+
+function safeErrorString(err: unknown): { message: string; debug: Record<string, unknown> } {
+  const verbose = isVerboseEnabled(process.env);
+
+  const rec = err instanceof Error ? err : new Error(String(err));
+  const anyErr = err as { code?: unknown; status?: unknown; stack?: unknown };
+
+  const code = typeof anyErr?.code === "string" || typeof anyErr?.code === "number" ? anyErr.code : undefined;
+  const status = typeof anyErr?.status === "number" ? anyErr.status : undefined;
+
+  const msgParts = [`${rec.name}: ${rec.message}`];
+  if (typeof status === "number") msgParts.push(`status=${status}`);
+  if (code !== undefined) msgParts.push(`code=${String(code)}`);
+
+  const debug: Record<string, unknown> = {
+    name: rec.name,
+    message: rec.message,
+    ...(status !== undefined ? { status } : null),
+    ...(code !== undefined ? { code } : null),
+  };
+  if (verbose && typeof anyErr?.stack === "string") debug.stack = anyErr.stack;
+
+  return { message: msgParts.join(" "), debug };
+}
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
@@ -85,12 +110,30 @@ export function registerIpcHandlers(): void {
     return status;
   });
   ipcMain.handle(IPC_CHANNELS.authSignIn, async () => {
+    const verbose = isVerboseEnabled(process.env);
+    console.info(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "info",
+        area: "ipc",
+        message: "starting microsoft sign-in",
+      }),
+    );
     try {
       await startMicrosoftSignIn();
       return { ok: true } as const;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg } as const;
+      const safe = safeErrorString(e);
+      console.warn(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          level: "warn",
+          area: "ipc",
+          message: "microsoft sign-in failed",
+          meta: verbose ? safe.debug : { ...safe.debug, stack: undefined },
+        }),
+      );
+      return { ok: false, error: safe.message } as const;
     }
   });
   ipcMain.handle(IPC_CHANNELS.authSignOut, async () => {

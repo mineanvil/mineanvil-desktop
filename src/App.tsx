@@ -411,7 +411,7 @@ function App() {
                         await fetchStatus('refresh')
                       } else {
                         setSignInMessage(res.error ?? 'Sign-in failed.')
-                        logger.info('auth sign-in result', { ok: false })
+                        logger.info('auth sign-in result', { ok: false, error: res.error ?? '(no error provided)' })
                       }
                     } catch (err) {
                       const msg = err instanceof Error ? err.message : String(err)
