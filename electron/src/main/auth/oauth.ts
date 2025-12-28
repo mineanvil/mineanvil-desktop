@@ -14,7 +14,6 @@
 
 import { shell } from "electron";
 import * as crypto from "node:crypto";
-import * as http from "node:http";
 import * as https from "node:https";
 import { URL } from "node:url";
 import { isVerboseEnabled, type Logger, createLogger, type LogEntry } from "../../shared/logging";
