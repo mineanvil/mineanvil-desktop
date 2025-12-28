@@ -20,6 +20,7 @@ import { URL } from "node:url";
 import { isVerboseEnabled, type Logger, createLogger, type LogEntry } from "../../shared/logging";
 import { saveTokens, type StoredTokens } from "./tokenStore";
 import { getMsClientId } from "../config";
+import { REDIRECT_URI, waitForOAuthCallback } from "./loopback";
 
 export interface AuthResult {
   readonly token_type: string;
@@ -198,91 +199,14 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
   const verifier = generatePkceVerifier();
   const challenge = generatePkceChallengeS256(verifier);
   const state = generateState();
-
-  // Start loopback server.
-  const server = await new Promise<{
-    redirectUri: string;
-    close: () => Promise<void>;
-    waitForCode: () => Promise<{ code: string; state: string }>;
-  }>((resolve, reject) => {
-    const s = http.createServer();
-    s.on("error", reject);
-    s.listen(0, "127.0.0.1", () => {
-      const addr = s.address();
-      if (!addr || typeof addr === "string") {
-        reject(new Error("Failed to bind loopback server"));
-        return;
-      }
-
-      const redirectUri = `http://127.0.0.1:${addr.port}/callback`;
-      logger.info("loopback server listening", { port: addr.port });
-
-      const waitForCode = (): Promise<{ code: string; state: string }> =>
-        new Promise((resolveWait, rejectWait) => {
-          const onRequest: http.RequestListener = (req, res) => {
-            try {
-              if (!req.url) {
-                res.writeHead(400, { "Content-Type": "text/plain" });
-                res.end("Bad request");
-                return;
-              }
-              const u = new URL(req.url, redirectUri);
-              if (u.pathname !== "/callback") {
-                res.writeHead(404, { "Content-Type": "text/plain" });
-                res.end("Not found");
-                return;
-              }
-
-              const code = u.searchParams.get("code");
-              const cbState = u.searchParams.get("state");
-              const error = u.searchParams.get("error");
-              const errorDescription = u.searchParams.get("error_description");
-
-              if (error) {
-                logger.warn("oauth callback error", { error, hasDescription: Boolean(errorDescription) });
-                res.writeHead(200, { "Content-Type": "text/html" });
-                res.end("<h1>Sign-in failed</h1><p>You may close this window.</p>");
-                rejectWait(new Error(errorDescription || error));
-                return;
-              }
-
-              if (!code || !cbState) {
-                res.writeHead(400, { "Content-Type": "text/plain" });
-                res.end("Missing code/state");
-                return;
-              }
-
-              res.writeHead(200, { "Content-Type": "text/html" });
-              res.end("<h1>Sign-in complete</h1><p>You may close this window and return to MineAnvil.</p>");
-
-              logger.info("oauth callback received", { hasCode: true, hasState: true });
-              resolveWait({ code, state: cbState });
-            } catch (e) {
-              logger.error("oauth callback handler threw", { error: e instanceof Error ? e.message : String(e) });
-              rejectWait(e);
-            } finally {
-              s.off("request", onRequest);
-            }
-          };
-
-          s.on("request", onRequest);
-        });
-
-      resolve({
-        redirectUri,
-        waitForCode,
-        close: async () => {
-          await new Promise<void>((r) => s.close(() => r()));
-        },
-      });
-    });
-  });
+  // Start loopback listener FIRST. If it fails (EADDRINUSE), we do not open the browser.
+  const callbackPromise = waitForOAuthCallback(state);
 
   try {
     const authorizeUrl = new URL(OAUTH.authorizeEndpoint);
     authorizeUrl.searchParams.set("client_id", msClientId);
     authorizeUrl.searchParams.set("response_type", "code");
-    authorizeUrl.searchParams.set("redirect_uri", server.redirectUri);
+    authorizeUrl.searchParams.set("redirect_uri", REDIRECT_URI);
     authorizeUrl.searchParams.set("response_mode", "query");
     authorizeUrl.searchParams.set("scope", OAUTH.scopes.join(" "));
     authorizeUrl.searchParams.set("state", state);
@@ -298,18 +222,14 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
       throw new Error("Failed to open system browser for sign-in");
     }
 
-    const cb = await server.waitForCode();
-    if (cb.state !== state) {
-      logger.warn("oauth state mismatch", { ok: false });
-      throw new Error("OAuth state mismatch");
-    }
+    const cb = await callbackPromise;
 
     logger.info("exchanging auth code for tokens", { hasCode: true });
     const tokenJson = (await postForm(OAUTH.tokenEndpoint, {
       client_id: msClientId,
       grant_type: "authorization_code",
       code: cb.code,
-      redirect_uri: server.redirectUri,
+      redirect_uri: REDIRECT_URI,
       code_verifier: verifier,
       scope: OAUTH.scopes.join(" "),
     })) as Record<string, unknown>;
@@ -366,7 +286,7 @@ export async function startMicrosoftSignIn(): Promise<AuthResult> {
       scope,
     };
   } finally {
-    await server.close();
+    // loopback server closes itself after first callback
   }
 }
 

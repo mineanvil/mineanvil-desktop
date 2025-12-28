@@ -142,6 +142,7 @@ export function registerIpcHandlers(): void {
       return { ok: true } as const;
     } catch (e) {
       const safe = safeErrorString(e);
+      dialog.showErrorBox("MineAnvil Sign-in", safe.message);
       console.warn(
         JSON.stringify({
           ts: new Date().toISOString(),
