@@ -20,7 +20,9 @@ function createMainWindow(): BrowserWindow {
       // Required by prompt:
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      // NOTE: sandbox disabled so preload bridge (`window.mineanvil`) is visible in renderer.
+      // We may re-enable sandbox later after hardening and verifying the bridge works reliably.
+      sandbox: false,
 
       /**
        * IMPORTANT:
