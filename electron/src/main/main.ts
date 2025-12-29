@@ -10,9 +10,72 @@
 
 import { app, BrowserWindow, dialog } from "electron";
 import * as path from "node:path";
+import { createWriteStream } from "node:fs";
+import { ensureDefaultInstanceDirs, logsDir as getLogsDir } from "./paths";
 import { registerIpcHandlers } from "./ipc";
 import { validateRequiredConfig } from "./config";
 import { resolveAndValidateJavaAtStartup } from "./java";
+
+function installConsoleFileTee(params: { logFilePath: string }): void {
+  const stream = createWriteStream(params.logFilePath, { flags: "a" });
+
+  const safeToText = (v: unknown): string => {
+    if (typeof v === "string") return v;
+    if (v instanceof Error) return `${v.name}: ${v.message}`;
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  };
+
+  const writeLine = (args: unknown[]) => {
+    try {
+      const text = args.map(safeToText).join(" ");
+      stream.write(text.endsWith("\n") ? text : `${text}\n`);
+    } catch {
+      // Best-effort; never crash the app due to logging.
+    }
+  };
+
+  const orig = {
+    info: console.info.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+    debug: console.debug.bind(console),
+    log: console.log.bind(console),
+  };
+
+  console.info = (...args: unknown[]) => {
+    writeLine(args);
+    orig.info(...args);
+  };
+  console.warn = (...args: unknown[]) => {
+    writeLine(args);
+    orig.warn(...args);
+  };
+  console.error = (...args: unknown[]) => {
+    writeLine(args);
+    orig.error(...args);
+  };
+  console.debug = (...args: unknown[]) => {
+    writeLine(args);
+    orig.debug(...args);
+  };
+  console.log = (...args: unknown[]) => {
+    writeLine(args);
+    orig.log(...args);
+  };
+
+  // Best-effort flush on exit.
+  process.on("exit", () => {
+    try {
+      stream.end();
+    } catch {
+      // ignore
+    }
+  });
+}
 
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -56,6 +119,28 @@ async function loadRenderer(win: BrowserWindow): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  // Instance Isolation: ensure controlled directories exist before anything else.
+  try {
+    await ensureDefaultInstanceDirs();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    dialog.showErrorBox(
+      "MineAnvil — Instance Storage Error",
+      `MineAnvil could not create its instance directories.\n\n${msg}`,
+    );
+    app.exit(1);
+    return;
+  }
+
+  // Ensure main-process log output is persisted under instance logs directory.
+  // NOTE: Do not log absolute paths.
+  try {
+    const logPath = path.join(getLogsDir(), "mineanvil-main.log");
+    installConsoleFileTee({ logFilePath: logPath });
+  } catch {
+    // Best-effort; do not fail startup if log file can't be opened.
+  }
+
   const cfg = validateRequiredConfig();
   if (!cfg.ok) {
     const msg = cfg.message;
