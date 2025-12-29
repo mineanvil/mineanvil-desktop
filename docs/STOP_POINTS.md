@@ -41,6 +41,7 @@ with verified ownership and an explicitly controlled Java runtime.
 - [ ] Java runtime is explicitly managed by MineAnvil
 - [ ] No reliance on system Java or PATH
 - [ ] Java version is pinned and documented
+- [ ] Java runtime is resolved and validated at startup (requires Java 17+)
 
 ### Instance Isolation
 - [ ] Unique instance directory is created

@@ -12,6 +12,7 @@ import { app, BrowserWindow, dialog } from "electron";
 import * as path from "node:path";
 import { registerIpcHandlers } from "./ipc";
 import { validateRequiredConfig } from "./config";
+import { resolveAndValidateJavaAtStartup } from "./java";
 
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -70,6 +71,37 @@ app.whenReady().then(async () => {
     app.exit(1);
     return;
   }
+
+  const java = await resolveAndValidateJavaAtStartup(process.env);
+  if (!java.ok) {
+    const msg = java.message;
+    dialog.showErrorBox("MineAnvil — Java Runtime Error", msg);
+    console.error(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "error",
+        area: "startup",
+        message: `startup aborted: ${msg}`,
+      }),
+    );
+    app.exit(1);
+    return;
+  }
+
+  // Log Java version only (never paths).
+  console.info(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      level: "info",
+      area: "startup",
+      message: "java runtime validated",
+      meta: {
+        source: java.source,
+        javaVersionMajor: java.javaVersionMajor,
+        javaVersion: java.javaVersionRaw,
+      },
+    }),
+  );
 
   registerIpcHandlers();
 
