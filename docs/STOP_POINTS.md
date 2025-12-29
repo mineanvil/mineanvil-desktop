@@ -44,9 +44,9 @@ with verified ownership and an explicitly controlled Java runtime.
 - [done] Java runtime is resolved and validated at startup (requires Java 17+)
 
 ### Instance Isolation
-- [ ] Unique instance directory is created
-- [ ] No writes occur outside controlled directories
-- [ ] Instance identity is stable across runs
+- [done] Unique instance directory is created
+- [done] No writes occur outside controlled directories
+- [done] Instance identity is stable across runs
 
 ### Launch
 - [ ] Minecraft launches successfully
