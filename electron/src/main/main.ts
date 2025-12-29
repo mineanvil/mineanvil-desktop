@@ -16,6 +16,11 @@ import { registerIpcHandlers } from "./ipc";
 import { validateRequiredConfig } from "./config";
 import { resolveAndValidateJavaAtStartup } from "./java";
 
+// Ensure Electron uses a stable app name so `app.getPath("userData")` resolves to
+// a predictable folder on Windows (e.g. %APPDATA%\MineAnvil).
+// Must be set before any `app.getPath(...)` calls.
+app.setName("MineAnvil");
+
 function installConsoleFileTee(params: { logFilePath: string }): void {
   const stream = createWriteStream(params.logFilePath, { flags: "a" });
 
