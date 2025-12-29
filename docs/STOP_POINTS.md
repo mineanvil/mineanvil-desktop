@@ -26,22 +26,22 @@ Minecraft launches successfully via MineAnvil on a clean Windows machine,
 with verified ownership and an explicitly controlled Java runtime.
 
 ### Identity & Ownership
-- [ ] Microsoft OAuth login completes successfully
+- [done] Microsoft OAuth login completes successfully
 - [ ] Minecraft ownership is verified
 - [ ] Ownership failure is detected and blocked
 - [ ] Clear, user-safe error shown on ownership failure
 - [ ] No tokens or secrets written to logs
 
 ### Configuration
-- [ ] Microsoft Client ID is externally configurable
-- [ ] Missing or placeholder configuration fails fast
-- [ ] Startup failure messages are clear and actionable
+- [done] Microsoft Client ID is externally configurable
+- [done] Missing or placeholder configuration fails fast
+- [done] Startup failure messages are clear and actionable
 
 ### Java Runtime
-- [ ] Java runtime is explicitly managed by MineAnvil
-- [ ] No reliance on system Java or PATH
+- [done] Java runtime is explicitly managed by MineAnvil
+- [done] No reliance on system Java or PATH
 - [ ] Java version is pinned and documented
-- [ ] Java runtime is resolved and validated at startup (requires Java 17+)
+- [done] Java runtime is resolved and validated at startup (requires Java 17+)
 
 ### Instance Isolation
 - [ ] Unique instance directory is created
