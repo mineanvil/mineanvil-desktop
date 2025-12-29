@@ -54,4 +54,15 @@ export function getMsClientId(): string {
   return raw;
 }
 
+export function validateRequiredConfig(): { ok: true } | { ok: false; message: string } {
+  try {
+    // Reuse the single source of truth for MS_CLIENT_ID validation.
+    void getMsClientId();
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, message: msg };
+  }
+}
+
 

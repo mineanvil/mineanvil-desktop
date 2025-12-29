@@ -8,9 +8,10 @@
  * - The renderer remains a normal Vite web app; no renderer code changes here.
  */
 
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, dialog } from "electron";
 import * as path from "node:path";
 import { registerIpcHandlers } from "./ipc";
+import { validateRequiredConfig } from "./config";
 
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -54,6 +55,22 @@ async function loadRenderer(win: BrowserWindow): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  const cfg = validateRequiredConfig();
+  if (!cfg.ok) {
+    const msg = cfg.message;
+    dialog.showErrorBox("MineAnvil — Configuration Error", msg);
+    console.error(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "error",
+        area: "startup",
+        message: `startup aborted: ${msg}`,
+      }),
+    );
+    app.exit(1);
+    return;
+  }
+
   registerIpcHandlers();
 
   const win = createMainWindow();
