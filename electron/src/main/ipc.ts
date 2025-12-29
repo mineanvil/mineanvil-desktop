@@ -44,6 +44,80 @@ function safeErrorString(err: unknown): { message: string; debug: Record<string,
   return { message: msgParts.join(" "), debug };
 }
 
+function ownershipBlockedUserMessage(): string {
+  return [
+    "Minecraft ownership could not be verified for this signed-in account.",
+    "",
+    "MineAnvil blocks launching unless the account owns Minecraft: Java Edition.",
+    "",
+    "Next steps:",
+    "- Sign in with the Microsoft account that owns Minecraft: Java Edition",
+    "- If you don't own it yet, purchase Minecraft: Java Edition and try again",
+    "- Retry after a moment if this is a transient network issue",
+  ].join("\n");
+}
+
+async function loadValidMicrosoftTokens(): Promise<Awaited<ReturnType<typeof loadTokens>> | null> {
+  let tokens = await loadTokens();
+  if (!tokens) return null;
+
+  const now = Date.now();
+  if (tokens.expires_at <= now) {
+    try {
+      const refreshed = await refreshMicrosoftAccessToken({ refreshToken: tokens.refresh_token });
+      const obtainedAt = Date.now();
+      const expiresAt = obtainedAt + refreshed.expires_in * 1000 - 30_000;
+
+      await saveTokens({
+        access_token: refreshed.access_token,
+        refresh_token: refreshed.refresh_token ?? tokens.refresh_token,
+        token_type: refreshed.token_type,
+        scope: refreshed.scope,
+        obtained_at: obtainedAt,
+        expires_at: expiresAt,
+      });
+
+      tokens = await loadTokens();
+      if (!tokens) return null;
+    } catch {
+      // Conservative: treat as signed out if refresh fails.
+      return null;
+    }
+  }
+
+  return tokens;
+}
+
+async function requireOwnedMinecraftJava(): Promise<{
+  mcAccessToken: string;
+  profile: { id: string; name: string };
+}> {
+  const tokens = await loadValidMicrosoftTokens();
+  if (!tokens) throw new Error("Signed out");
+
+  const { mcAccessToken } = await getMinecraftAccessToken(tokens.access_token);
+  const entitlements = await getEntitlements(mcAccessToken);
+  const owned = checkJavaOwnership(entitlements);
+
+  if (!owned.owned) {
+    throw new Error(owned.reason ? `Ownership not verified: ${owned.reason}` : "Ownership not verified");
+  }
+
+  const profile = await getProfile(mcAccessToken);
+  return { mcAccessToken, profile };
+}
+
+function redactLaunchArgs(args: string[]): string[] {
+  const out = [...args];
+  for (let i = 0; i < out.length; i++) {
+    if (out[i] === "--accessToken" && typeof out[i + 1] === "string") {
+      out[i + 1] = "[REDACTED]";
+      i++;
+    }
+  }
+  return out;
+}
+
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
   ipcMain.handle(IPC_CHANNELS.authGetStatus, async () => {
@@ -197,6 +271,15 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.installVanilla, async (_evt, version: string) => {
     try {
+      // Hard gate: must own Minecraft: Java Edition.
+      try {
+        await requireOwnedMinecraftJava();
+      } catch {
+        const msg = ownershipBlockedUserMessage();
+        dialog.showErrorBox("MineAnvil — Launch blocked", msg);
+        return { ok: false, error: msg } as const;
+      }
+
       const instance = await ensureDefaultInstance();
       const res = await ensureVanillaInstalled(instance.path, version);
       return { ok: true, versionId: res.versionId, notes: res.notes } as const;
@@ -208,8 +291,28 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.getLaunchCommand, async (_evt, version: string) => {
     try {
-      const cmd = await buildVanillaLaunchCommand({ versionIdOrLatest: version });
-      return { ok: true, command: { javaPath: cmd.javaPath, args: cmd.args, cwd: cmd.cwd } } as const;
+      let auth:
+        | { playerName: string; uuid: string; mcAccessToken: string }
+        | undefined = undefined;
+
+      // Best-effort: try to provide a "real" launch command without exposing secrets.
+      // If ownership cannot be verified, block (hard gate) rather than returning a stub that could be mistaken as real.
+      try {
+        const owned = await requireOwnedMinecraftJava();
+        auth = {
+          playerName: owned.profile.name,
+          uuid: owned.profile.id,
+          mcAccessToken: owned.mcAccessToken,
+        };
+      } catch {
+        const msg = ownershipBlockedUserMessage();
+        dialog.showErrorBox("MineAnvil — Launch blocked", msg);
+        return { ok: false, error: msg } as const;
+      }
+
+      const cmd = await buildVanillaLaunchCommand({ versionIdOrLatest: version, auth });
+      const safeArgs = redactLaunchArgs(cmd.args);
+      return { ok: true, command: { javaPath: cmd.javaPath, args: safeArgs, cwd: cmd.cwd } } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return { ok: false, error: msg } as const;
@@ -218,7 +321,24 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.launchVanilla, async (_evt, version: string) => {
     try {
-      const res = await launchVanilla({ versionIdOrLatest: version });
+      let auth:
+        | { playerName: string; uuid: string; mcAccessToken: string }
+        | undefined = undefined;
+
+      try {
+        const owned = await requireOwnedMinecraftJava();
+        auth = {
+          playerName: owned.profile.name,
+          uuid: owned.profile.id,
+          mcAccessToken: owned.mcAccessToken,
+        };
+      } catch {
+        const msg = ownershipBlockedUserMessage();
+        dialog.showErrorBox("MineAnvil — Launch blocked", msg);
+        return { ok: false, error: msg } as const;
+      }
+
+      const res = await launchVanilla({ versionIdOrLatest: version, auth });
       return res;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

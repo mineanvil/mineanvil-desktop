@@ -26,6 +26,13 @@ export interface LaunchSummary {
 
 export async function buildVanillaLaunchCommand(params: {
   versionIdOrLatest: string;
+  /**
+   * Real Minecraft auth context.
+   *
+   * SECURITY:
+   * - Never return tokens to the renderer (IPC must redact if displaying args).
+   */
+  auth?: { playerName: string; uuid: string; mcAccessToken: string };
 }): Promise<{
   javaPath: string;
   args: string[];
@@ -77,6 +84,11 @@ export async function buildVanillaLaunchCommand(params: {
   const cpSep = ";";
   const classpath = cp.join(cpSep);
 
+  const auth = params.auth;
+  const playerName = auth?.playerName ?? "Player";
+  const uuid = auth?.uuid ?? "00000000-0000-0000-0000-000000000000";
+  const accessToken = auth?.mcAccessToken ?? "0";
+
   const substitutions: Record<string, string> = {
     "${natives_directory}": install.nativesDir,
     "${launcher_name}": "MineAnvil",
@@ -86,10 +98,10 @@ export async function buildVanillaLaunchCommand(params: {
     "${game_directory}": mcDir,
     "${assets_root}": path.join(mcDir, "assets"),
     "${assets_index_name}": install.assetIndexId,
-    "${auth_player_name}": "Player",
+    "${auth_player_name}": playerName,
     "${version_name}": versionId,
-    "${auth_uuid}": "00000000-0000-0000-0000-000000000000",
-    "${auth_access_token}": "0",
+    "${auth_uuid}": uuid,
+    "${auth_access_token}": accessToken,
     "${user_type}": "msa",
   };
 
@@ -146,7 +158,7 @@ export async function buildVanillaLaunchCommand(params: {
     ...gameArgsFromJson,
     ...legacyGameArgs,
     "--username",
-    "Player",
+    playerName,
     "--version",
     versionId,
     "--gameDir",
@@ -180,9 +192,13 @@ export async function buildVanillaLaunchCommand(params: {
 
 export async function launchVanilla(params: {
   versionIdOrLatest: string;
+  auth?: { playerName: string; uuid: string; mcAccessToken: string };
 }): Promise<{ ok: boolean; pid?: number; error?: string }> {
   try {
-    const cmd = await buildVanillaLaunchCommand({ versionIdOrLatest: params.versionIdOrLatest });
+    const cmd = await buildVanillaLaunchCommand({
+      versionIdOrLatest: params.versionIdOrLatest,
+      auth: params.auth,
+    });
 
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
     const logDir = path.join(cmd.cwd, "logs");

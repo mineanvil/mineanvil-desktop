@@ -64,6 +64,7 @@ function App() {
   }, [fetchStatus])
 
   const isBrowserMode = typeof window !== 'undefined' && !window.mineanvil
+  const launchBlocked = !authStatus?.signedIn || authStatus.minecraftOwned !== true
 
   return (
     <>
@@ -172,6 +173,12 @@ function App() {
 
               <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
                 <p>Vanilla Minecraft (Windows runner)</p>
+                {launchBlocked ? (
+                  <p style={{ color: 'crimson' }}>
+                    <strong>Launch blocked</strong> — sign in with an account that owns Minecraft: Java Edition (ownership must
+                    be verified).
+                  </p>
+                ) : null}
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
                   <label>
                     Version:{' '}
@@ -209,7 +216,7 @@ function App() {
                         }
                       })()
                     }}
-                    disabled={isInstallingVanilla}
+                    disabled={isInstallingVanilla || launchBlocked}
                   >
                     {isInstallingVanilla ? 'Installing…' : 'Install Vanilla (Windows)'}
                   </button>
@@ -238,7 +245,7 @@ function App() {
                         }
                       })()
                     }}
-                    disabled={isLoadingLaunchCmd}
+                    disabled={isLoadingLaunchCmd || launchBlocked}
                   >
                     {isLoadingLaunchCmd ? 'Loading…' : 'Show Launch Command'}
                   </button>
@@ -267,7 +274,7 @@ function App() {
                         }
                       })()
                     }}
-                    disabled={isLaunchingVanilla}
+                    disabled={isLaunchingVanilla || launchBlocked}
                   >
                     {isLaunchingVanilla ? 'Launching…' : 'Launch Vanilla (Windows)'}
                   </button>
