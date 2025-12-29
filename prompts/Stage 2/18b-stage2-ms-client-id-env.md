@@ -57,3 +57,27 @@ D) Error handling:
   - log only the error message (no env dump, no client id)
 
 E) Add `.env.example` at repo root:
+
+F) Ensure `.gitignore` ignores:
+- `.env`
+- `.env.local`
+- `.env.*.local`
+
+G) Skip README changes unless trivial.
+
+## Acceptance Test
+1) No `MS_CLIENT_ID` set:
+   - clicking Sign In shows dialog explaining how to set it
+   - browser does not open
+2) `MS_CLIENT_ID=YOUR_MICROSOFT_PUBLIC_CLIENT_ID`:
+   - same behaviour as above
+3) Valid `MS_CLIENT_ID` set:
+   - browser opens
+   - authorize URL contains correct `client_id`
+
+## Output
+- Implement changes.
+- Update/add files as required.
+- Commit with message:
+  "P18b Stage2 load MS client id from env (no secrets)"
+- Stop.
