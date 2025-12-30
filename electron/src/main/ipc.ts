@@ -121,6 +121,7 @@ function redactLaunchArgs(args: string[]): string[] {
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
   ipcMain.handle(IPC_CHANNELS.authGetStatus, async () => {
+    const verbose = isVerboseEnabled(process.env);
     let tokens = await loadTokens();
     if (!tokens) return { signedIn: false } as const;
 
@@ -178,8 +179,21 @@ export function registerIpcHandlers(): void {
         status.displayName = profile.name;
         status.uuid = profile.id;
       }
-    } catch {
-      // Best-effort: keep signedIn true, but omit minecraft status if calls fail.
+    } catch (e) {
+      // Keep signedIn true, but mark ownership as not verified so launch gating is deterministic.
+      // Never include tokens or raw HTTP responses.
+      status.minecraftOwned = false;
+
+      const safe = safeErrorString(e);
+      console.warn(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          level: "warn",
+          area: "ipc",
+          message: "minecraft ownership/profile check failed",
+          meta: verbose ? safe.debug : { ...safe.debug, stack: undefined },
+        }),
+      );
     }
 
     return status;

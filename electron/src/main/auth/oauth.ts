@@ -36,8 +36,18 @@ const OAUTH = {
   authorizeEndpoint: "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
   tokenEndpoint: "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
 
-  // Placeholder scopes for later Minecraft Java ownership work.
-  scopes: ["openid", "profile", "offline_access"],
+  /**
+   * Scopes required for Minecraft Java ownership verification chain.
+   *
+   * Notes:
+   * - `XboxLive.signin` is required to exchange the Microsoft token for XBL/XSTS and then Minecraft Services.
+   * - `offline_access` enables refresh tokens.
+   * - `openid`/`profile` are optional, but useful for basic identity and parity with common OAuth setups.
+   *
+   * IMPORTANT:
+   * - Changing scopes requires the user to sign in again to obtain a token with the new scopes.
+   */
+  scopes: ["openid", "profile", "offline_access", "XboxLive.signin", "XboxLive.offline_access"],
 } as const;
 
 function createConsoleSink(): (entry: LogEntry) => void {
