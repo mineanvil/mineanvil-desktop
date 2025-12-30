@@ -64,6 +64,28 @@ async function readJsonFile<T>(p: string): Promise<T> {
   return JSON.parse(raw) as T;
 }
 
+async function tryReadJsonFile<T>(p: string): Promise<T | null> {
+  try {
+    return await readJsonFile<T>(p);
+  } catch {
+    return null;
+  }
+}
+
+async function writeJsonAtomic(p: string, value: unknown): Promise<void> {
+  await ensureDir(path.dirname(p));
+  const tmp = `${p}.tmp-${process.pid}-${Date.now()}`;
+  await fs.writeFile(tmp, JSON.stringify(value, null, 2), { encoding: "utf8" });
+  // Best-effort replace: remove existing, then rename tmp into place.
+  // If we crash in-between, we'll re-download/re-write on the next run.
+  try {
+    await fs.rm(p, { force: true });
+  } catch {
+    // ignore
+  }
+  await fs.rename(tmp, p);
+}
+
 async function extractZipWindows(params: {
   zipFile: string;
   destDir: string;
@@ -154,15 +176,47 @@ export async function ensureVanillaInstalled(instancePath: string, versionIdOrLa
   const librariesDir = path.join(mcDir, "libraries");
   const assetsDir = path.join(mcDir, "assets");
 
-  const { versionId, versionJsonUrl } = await resolveVersion(versionIdOrLatest);
-  const versionJson = await fetchVersionJson(versionJsonUrl);
+  // Deterministic re-run behavior:
+  // - If caller passes "latest", pin the resolved release version locally and reuse it on subsequent runs.
+  // - If we already have the version JSON on disk, reuse it (avoid network variability).
+  const mineanvilMetaDir = path.join(mcDir, "mineanvil");
+  const latestPinPath = path.join(mineanvilMetaDir, "latest-release.json");
+
+  let versionId: string;
+  let versionJsonUrl: string | null = null;
+
+  if (versionIdOrLatest === "latest") {
+    const pinned = await tryReadJsonFile<{ versionId?: unknown }>(latestPinPath);
+    if (pinned && typeof pinned.versionId === "string" && pinned.versionId.trim()) {
+      versionId = pinned.versionId;
+      notes.push(`latest pinned: ${versionId}`);
+    } else {
+      const resolved = await resolveVersion("latest");
+      versionId = resolved.versionId;
+      versionJsonUrl = resolved.versionJsonUrl;
+      await writeJsonAtomic(latestPinPath, { versionId, resolvedAt: new Date().toISOString() });
+      notes.push(`latest resolved+pinned: ${versionId}`);
+    }
+  } else {
+    versionId = versionIdOrLatest;
+  }
 
   const versionDir = path.join(versionsDir, versionId);
   const versionJsonPath = path.join(versionDir, `${versionId}.json`);
   const clientJarPath = path.join(versionDir, `${versionId}.jar`);
 
-  await writeJson(versionJsonPath, versionJson);
-  notes.push(`saved version json: ${versionJsonPath}`);
+  let versionJson = await tryReadJsonFile<Awaited<ReturnType<typeof fetchVersionJson>>>(versionJsonPath);
+  if (!versionJson) {
+    if (!versionJsonUrl) {
+      const resolved = await resolveVersion(versionId);
+      versionJsonUrl = resolved.versionJsonUrl;
+    }
+    versionJson = await fetchVersionJson(versionJsonUrl);
+    await writeJsonAtomic(versionJsonPath, versionJson);
+    notes.push(`saved version json: ${versionJsonPath}`);
+  } else {
+    notes.push(`using cached version json: ${versionJsonPath}`);
+  }
 
   // Client jar
   const client = versionJson.downloads.client;

@@ -8,7 +8,7 @@
  * - Ensure a stable default instance layout exists:
  *   - <base>/instances/default/
  *   - <base>/instances/default/logs/
- *   - <base>/instances/default/minecraft/
+ *   - <base>/instances/default/.minecraft/
  *
  * Notes:
  * - This module is Electron-main only (imports `electron`).
@@ -34,7 +34,11 @@ export function logsDir(instanceId: string = DEFAULT_INSTANCE_ID): string {
 }
 
 export function minecraftDir(instanceId: string = DEFAULT_INSTANCE_ID): string {
-  return path.join(instanceRoot(instanceId), "minecraft");
+  // IMPORTANT:
+  // The rest of the codebase (installer/launcher) uses the conventional Minecraft
+  // directory name `.minecraft`. Creating a second `minecraft/` folder causes
+  // duplication across runs (SP1.2).
+  return path.join(instanceRoot(instanceId), ".minecraft");
 }
 
 export async function ensureDefaultInstanceDirs(): Promise<{
