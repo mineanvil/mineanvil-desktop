@@ -41,6 +41,26 @@ async function postJson<T>(params: {
   const u = new URL(params.url);
   const bodyText = JSON.stringify(params.body);
 
+  const safeErrorMeta = (json: unknown): Record<string, unknown> => {
+    if (!json || typeof json !== "object") return {};
+    const rec = json as Record<string, unknown>;
+    const pickString = (k: string): string | undefined => (typeof rec[k] === "string" ? (rec[k] as string) : undefined);
+    const pickNumber = (k: string): number | undefined => (typeof rec[k] === "number" ? (rec[k] as number) : undefined);
+
+    // Different endpoints use different shapes; keep this conservative and non-secret.
+    const meta: Record<string, unknown> = {};
+    const error = pickString("error") ?? pickString("errorCode") ?? pickString("code");
+    const message =
+      pickString("errorMessage") ?? pickString("message") ?? pickString("description") ?? pickString("error_description");
+    const xerr = pickNumber("XErr") ?? pickNumber("xerr");
+
+    if (typeof error === "string" && error) meta.error = error.slice(0, 120);
+    if (typeof message === "string" && message) meta.message = message.slice(0, 240);
+    if (typeof xerr === "number" && Number.isFinite(xerr)) meta.xerr = xerr;
+
+    return meta;
+  };
+
   return await new Promise<T>((resolve, reject) => {
     const req = https.request(
       {
@@ -70,15 +90,25 @@ async function postJson<T>(params: {
           }
 
           if (status === 401 || status === 403 || status === 429) {
-            params.logger.warn("http request failed", { endpoint: params.endpointName, status });
+            params.logger.warn("http request failed", {
+              endpoint: params.endpointName,
+              status,
+              ...safeErrorMeta(json),
+            });
           } else if (status < 200 || status >= 300) {
-            params.logger.warn("http request failed", { endpoint: params.endpointName, status });
+            params.logger.warn("http request failed", {
+              endpoint: params.endpointName,
+              status,
+              ...safeErrorMeta(json),
+            });
           } else if (isVerboseEnabled(process.env)) {
             params.logger.debug("http request ok", { endpoint: params.endpointName, status });
           }
 
           if (status < 200 || status >= 300) {
-            reject(new Error(`${params.endpointName} failed (HTTP ${status})`));
+            const meta = safeErrorMeta(json);
+            const metaText = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
+            reject(new Error(`${params.endpointName} failed (HTTP ${status})${metaText}`));
             return;
           }
           resolve(json as T);
