@@ -68,6 +68,8 @@ without corruption, duplication, or undefined behaviour.
 
 Evidence / notes:
 - [done] Repeatability validation test plan is documented (`docs/SP1.2-repeatability-validation.md`)
+- [done] Stability verification checklist is documented (`docs/SP1.2-stability-verification.md`)
+- [done] Validation run report worksheet is documented (`docs/SP1.2-validation-run-report.md`)
 
 ### Idempotency
 - [ ] Setup steps are safe to re-run
