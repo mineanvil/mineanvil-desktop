@@ -28,9 +28,9 @@ with verified ownership and an explicitly controlled Java runtime.
 ### Identity & Ownership
 - [done] Microsoft OAuth login completes successfully
 - [ ] Minecraft ownership is verified
-- [ ] Ownership failure is detected and blocked
-- [ ] Clear, user-safe error shown on ownership failure
-- [ ] No tokens or secrets written to logs
+- [done] Ownership failure is detected and blocked
+- [done] Clear, user-safe error shown on ownership failure
+- [done] No tokens or secrets written to logs
 
 ### Configuration
 - [done] Microsoft Client ID is externally configurable
@@ -65,6 +65,9 @@ with verified ownership and an explicitly controlled Java runtime.
 Definition:
 Re-running MineAnvil on the same machine produces the same outcome
 without corruption, duplication, or undefined behaviour.
+
+Evidence / notes:
+- [done] Repeatability validation test plan is documented (`docs/SP1.2-repeatability-validation.md`)
 
 ### Idempotency
 - [ ] Setup steps are safe to re-run
@@ -103,6 +106,9 @@ When something fails, the failure is visible, explainable, and actionable.
 - [done] Log locations are predictable
 - [done] Logs persist across runs
 - [done] Logs contain no secrets
+
+Evidence / notes:
+- [done] Logging persistence note is documented (`docs/SP1.3-logging-persistence.md`)
 
 ---
 
