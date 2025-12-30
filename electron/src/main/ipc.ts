@@ -154,7 +154,7 @@ function ownershipBlockedUserMessage(params: { signedIn: boolean; ownershipState
       "",
       "Next steps:",
       "- Use the official Minecraft Launcher for now",
-      "- Retry later once MineAnvil is allow-listed",
+      "- Retrying in MineAnvil will not help until the app is allow-listed",
     ].join("\n");
   }
 
@@ -214,8 +214,9 @@ function minecraftAuthFailureFromError(err: unknown): FailureInfo {
 function ownershipFailureFromError(err: unknown): FailureInfo {
   if (isMinecraftAuthChainFailure(err)) return minecraftAuthFailureFromError(err);
   const msg = ownershipGateMessageFromError(err);
-  const kind: FailureKind =
-    err instanceof OwnershipGateError && err.ownershipState === "NOT_OWNED" ? "PERMANENT" : "TEMPORARY";
+  const state: OwnershipState | undefined =
+    err instanceof OwnershipGateError ? err.ownershipState : classifyOwnershipStateFromError(err);
+  const kind: FailureKind = state === "NOT_OWNED" || state === "UNVERIFIED_APP_NOT_APPROVED" ? "PERMANENT" : "TEMPORARY";
   return makeFailure({
     category: "OWNERSHIP",
     kind,

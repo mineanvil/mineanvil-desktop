@@ -96,7 +96,7 @@ When something fails, the failure is visible, explainable, and actionable.
 ### User Experience
 - [ ] Errors are written in plain language
 - [ ] Parent can understand what went wrong
-- [ ] Retry is offered only when meaningful
+- [done] Retry is offered only when meaningful
 
 ### Logging
 - [ ] Logs are structured and readable
