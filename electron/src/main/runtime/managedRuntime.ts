@@ -49,6 +49,13 @@ export const DEFAULT_RUNTIME_MANIFEST: RuntimeManifest = {
   javaRelativePath: "bin/java.exe",
 };
 
+function isPlaceholderManifest(manifest: RuntimeManifest): boolean {
+  const url = (manifest.downloadUrl ?? "").toLowerCase();
+  const sha = (manifest.sha256 ?? "").toLowerCase();
+  const allZerosSha = sha.length >= 16 && /^[0]+$/.test(sha);
+  return url.includes("example.invalid") || allZerosSha;
+}
+
 function createConsoleSink(): (entry: LogEntry) => void {
   return (entry) => {
     const line = JSON.stringify(entry);
@@ -222,6 +229,12 @@ export async function ensureManagedRuntime(manifest: RuntimeManifest): Promise<R
 
   if (await fileExists(javaPath)) {
     return { kind: "managed", javaPath };
+  }
+
+  if (isPlaceholderManifest(manifest)) {
+    throw new Error(
+      "Managed runtime is not configured yet (placeholder download URL / checksum). This is a MineAnvil build-time configuration issue.",
+    );
   }
 
   if (process.platform !== "win32") {

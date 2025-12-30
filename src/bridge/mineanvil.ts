@@ -1,4 +1,9 @@
-import type { AuthStatus, MineAnvilApi, PingResult } from "../../electron/src/shared/ipc-types";
+import type {
+  AuthStatus,
+  FailureInfo,
+  MineAnvilApi,
+  PingResult,
+} from "../../electron/src/shared/ipc-types";
 
 let warned = false;
 type BrowserStubApi = MineAnvilApi & { __dev: { setAuthStatus: (status: AuthStatus) => void } };
@@ -16,41 +21,56 @@ function warnOnce(): void {
 function createBrowserStub(): BrowserStubApi {
   warnOnce();
 
+  const notElectronFailure = (category: FailureInfo["category"], action: string): FailureInfo => ({
+    category,
+    kind: "PERMANENT",
+    canRetry: false,
+    userMessage: `${action} is only available in Electron on Windows`,
+  });
+
   const stub: BrowserStubApi = {
     ping: async (): Promise<PingResult> => ({ ok: true, ts: Date.now() }),
     authGetStatus: async (): Promise<AuthStatus> => browserAuthStatus,
     authSignIn: async () => ({
       ok: false,
       error: "authSignIn is only available in Electron on Windows",
+      failure: notElectronFailure("AUTHENTICATION", "authSignIn"),
     }),
     authSignOut: async () => ({
       ok: false,
       error: "authSignOut is only available in Electron on Windows",
+      failure: notElectronFailure("AUTHENTICATION", "authSignOut"),
     }),
     getLaunchPlan: async () => ({
       ok: false,
       error: "getLaunchPlan is only available in Electron on Windows",
+      failure: notElectronFailure("LAUNCH", "getLaunchPlan"),
     }),
     ensureRuntime: async () => ({
       ok: false,
       error: "ensureRuntime is only available in Electron on Windows",
+      failure: notElectronFailure("RUNTIME", "ensureRuntime"),
     }),
     getRuntimeStatus: async () => ({
       ok: false,
       installed: false,
       error: "getRuntimeStatus is only available in Electron on Windows",
+      failure: notElectronFailure("RUNTIME", "getRuntimeStatus"),
     }),
     installVanilla: async () => ({
       ok: false,
       error: "installVanilla is only available in Electron on Windows",
+      failure: notElectronFailure("LAUNCH", "installVanilla"),
     }),
     getLaunchCommand: async () => ({
       ok: false,
       error: "getLaunchCommand is only available in Electron on Windows",
+      failure: notElectronFailure("LAUNCH", "getLaunchCommand"),
     }),
     launchVanilla: async () => ({
       ok: false,
       error: "launchVanilla is only available in Electron on Windows",
+      failure: notElectronFailure("LAUNCH", "launchVanilla"),
     }),
     // Dev-only escape hatch for browser mode. Not part of the public API contract.
     __dev: {

@@ -6,7 +6,14 @@
  */
 
 import { dialog, ipcMain } from "electron";
-import { IPC_CHANNELS, type AuthStatus, type OwnershipState } from "../shared/ipc-types";
+import {
+  IPC_CHANNELS,
+  type AuthStatus,
+  type FailureCategory,
+  type FailureInfo,
+  type FailureKind,
+  type OwnershipState,
+} from "../shared/ipc-types";
 import { refreshMicrosoftAccessToken, startMicrosoftSignIn } from "./auth/oauth";
 import { clearTokens, loadTokens, saveTokens } from "./auth/tokenStore";
 import { getMinecraftAccessToken } from "./minecraft/minecraftAuth";
@@ -42,6 +49,46 @@ function safeErrorString(err: unknown): { message: string; debug: Record<string,
   if (verbose && typeof anyErr?.stack === "string") debug.stack = anyErr.stack;
 
   return { message: msgParts.join(" "), debug };
+}
+
+function makeFailure(params: {
+  category: FailureCategory;
+  kind: FailureKind;
+  userMessage: string;
+  canRetry: boolean;
+  debug?: Record<string, unknown>;
+}): FailureInfo {
+  return {
+    category: params.category,
+    kind: params.kind,
+    userMessage: params.userMessage,
+    canRetry: params.canRetry,
+    ...(params.debug ? { debug: params.debug } : null),
+  };
+}
+
+function looksLikeRuntimeFailure(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("managed runtime") ||
+    m.includes("runtime") ||
+    m.includes("java was not found") ||
+    m.includes("path java failed") ||
+    m.includes("java -version") ||
+    m.includes("java executable") ||
+    m.includes("checksum mismatch") ||
+    m.includes("expand-archive") ||
+    m.includes("java")
+  );
+}
+
+function platformNotSupportedFailure(params: { area: FailureCategory; actionLabel: string }): FailureInfo {
+  return makeFailure({
+    category: params.area,
+    kind: "PERMANENT",
+    canRetry: false,
+    userMessage: `${params.actionLabel} is only supported on the Windows runner right now.`,
+  });
 }
 
 function isMinecraftHttpError(err: unknown): err is { endpointName: string; status: number } {
@@ -115,13 +162,12 @@ function ownershipBlockedUserMessage(params: { signedIn: boolean; ownershipState
   return [
     "Minecraft ownership could not be verified for this signed-in account.",
     "",
-    "MineAnvil blocks launching unless the account owns Minecraft: Java Edition.",
+    "This may be a temporary network/service issue, or a sign-in session problem.",
     "",
     "Next steps:",
-    "- Sign in with the Microsoft account that owns Minecraft: Java Edition",
-    "- If you don't own it yet, purchase Minecraft: Java Edition and try again",
-    "- Retry after a moment (this may be a transient network/service issue)",
+    "- Retry after a moment",
     "- Check internet connectivity",
+    "- If it keeps failing, sign out and sign back in",
   ].join("\n");
 }
 
@@ -130,6 +176,192 @@ function ownershipGateMessageFromError(err: unknown): string {
     return ownershipBlockedUserMessage({ signedIn: err.signedIn, ownershipState: err.ownershipState });
   }
   return ownershipBlockedUserMessage({ signedIn: true, ownershipState: classifyOwnershipStateFromError(err) });
+}
+
+function isMinecraftAuthChainFailure(err: unknown): boolean {
+  if (isMinecraftHttpError(err)) {
+    return (
+      err.endpointName.startsWith("xbl.") ||
+      err.endpointName.startsWith("xsts.") ||
+      err.endpointName === "mc.login_with_xbox"
+    );
+  }
+  if (err instanceof Error) {
+    const m = err.message.toLowerCase();
+    return m.includes("xbl auth failed") || m.includes("xsts auth failed") || m.includes("minecraft login failed");
+  }
+  return false;
+}
+
+function minecraftAuthFailureFromError(err: unknown): FailureInfo {
+  const safe = safeErrorString(err);
+  return makeFailure({
+    category: "AUTHENTICATION",
+    kind: "TEMPORARY",
+    canRetry: true,
+    userMessage: [
+      "Minecraft authentication failed while verifying ownership.",
+      "",
+      "Next steps:",
+      "- Sign out and sign back in",
+      "- Check internet connectivity",
+      "- Retry the action",
+    ].join("\n"),
+    debug: safe.debug,
+  });
+}
+
+function ownershipFailureFromError(err: unknown): FailureInfo {
+  if (isMinecraftAuthChainFailure(err)) return minecraftAuthFailureFromError(err);
+  const msg = ownershipGateMessageFromError(err);
+  const kind: FailureKind =
+    err instanceof OwnershipGateError && err.ownershipState === "NOT_OWNED" ? "PERMANENT" : "TEMPORARY";
+  return makeFailure({
+    category: "OWNERSHIP",
+    kind,
+    canRetry: kind === "TEMPORARY",
+    userMessage: msg,
+  });
+}
+
+function authFailureFromError(err: unknown): FailureInfo {
+  const safe = safeErrorString(err);
+  const m = safe.message.toLowerCase();
+
+  if (m.includes("safestorage") && m.includes("encryption is not available")) {
+    return makeFailure({
+      category: "AUTHENTICATION",
+      kind: "PERMANENT",
+      canRetry: false,
+      userMessage: [
+        "MineAnvil cannot save sign-in tokens because secure storage is not available on this system.",
+        "",
+        "This is required for sign-in. Please check your OS security/keychain settings and try again.",
+      ].join("\n"),
+      debug: safe.debug,
+    });
+  }
+
+  // Local loopback / environment issues are usually actionable + retryable.
+  if (m.includes("port 53682 is already in use")) {
+    return makeFailure({
+      category: "AUTHENTICATION",
+      kind: "TEMPORARY",
+      canRetry: true,
+      userMessage: [
+        "Sign-in could not start because the local callback port is already in use.",
+        "",
+        "Next steps:",
+        "- Close any other MineAnvil instances or other apps using port 53682",
+        "- Retry sign-in",
+      ].join("\n"),
+      debug: safe.debug,
+    });
+  }
+
+  if (m.includes("access_denied")) {
+    return makeFailure({
+      category: "AUTHENTICATION",
+      kind: "TEMPORARY",
+      canRetry: true,
+      userMessage: "Sign-in was cancelled.",
+      debug: safe.debug,
+    });
+  }
+
+  if (m.includes("failed to open system browser")) {
+    return makeFailure({
+      category: "AUTHENTICATION",
+      kind: "TEMPORARY",
+      canRetry: true,
+      userMessage: [
+        "MineAnvil could not open your system browser to complete sign-in.",
+        "",
+        "Next steps:",
+        "- Check that a default browser is configured",
+        "- Retry sign-in",
+      ].join("\n"),
+      debug: safe.debug,
+    });
+  }
+
+  return makeFailure({
+    category: "AUTHENTICATION",
+    kind: "TEMPORARY",
+    canRetry: true,
+    userMessage: "Sign-in failed. Please retry.",
+    debug: safe.debug,
+  });
+}
+
+function runtimeFailureFromError(err: unknown): FailureInfo {
+  const safe = safeErrorString(err);
+  const m = safe.message.toLowerCase();
+
+  // Very likely config / placeholder manifests: retry won't help.
+  if (m.includes("not configured") || m.includes("placeholder")) {
+    return makeFailure({
+      category: "RUNTIME",
+      kind: "PERMANENT",
+      canRetry: false,
+      userMessage: safe.message,
+      debug: safe.debug,
+    });
+  }
+
+  // Unsupported platform or missing prerequisites: typically permanent for this machine.
+  if (m.includes("only supported on windows")) {
+    return makeFailure({
+      category: "RUNTIME",
+      kind: "PERMANENT",
+      canRetry: false,
+      userMessage: safe.message,
+      debug: safe.debug,
+    });
+  }
+
+  // Everything else: treat as temporary (download/network/filesystem may recover).
+  return makeFailure({
+    category: "RUNTIME",
+    kind: "TEMPORARY",
+    canRetry: true,
+    userMessage: safe.message,
+    debug: safe.debug,
+  });
+}
+
+function launchFailureFromError(err: unknown): FailureInfo {
+  const safe = safeErrorString(err);
+  const m = safe.message.toLowerCase();
+
+  if (m.includes("only supported on windows")) {
+    return makeFailure({
+      category: "LAUNCH",
+      kind: "PERMANENT",
+      canRetry: false,
+      userMessage: safe.message,
+      debug: safe.debug,
+    });
+  }
+
+  if (m.includes("version not found")) {
+    return makeFailure({
+      category: "LAUNCH",
+      kind: "PERMANENT",
+      canRetry: false,
+      userMessage: safe.message,
+      debug: safe.debug,
+    });
+  }
+
+  // Most launch failures are transient (download hiccups, extraction, java spawn); allow retry.
+  return makeFailure({
+    category: "LAUNCH",
+    kind: "TEMPORARY",
+    canRetry: true,
+    userMessage: safe.message,
+    debug: safe.debug,
+  });
 }
 
 async function loadValidMicrosoftTokens(): Promise<Awaited<ReturnType<typeof loadTokens>> | null> {
@@ -319,6 +551,12 @@ export function registerIpcHandlers(): void {
         void getMsClientId();
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
+        const failure = makeFailure({
+          category: "AUTHENTICATION",
+          kind: "PERMANENT",
+          canRetry: false,
+          userMessage: msg,
+        });
         dialog.showErrorBox("MineAnvil Sign-in", msg);
         console.error(
           JSON.stringify({
@@ -328,24 +566,24 @@ export function registerIpcHandlers(): void {
             message: msg,
           }),
         );
-        return { ok: false, error: msg } as const;
+        return { ok: false, error: msg, failure } as const;
       }
 
       await startMicrosoftSignIn();
       return { ok: true } as const;
     } catch (e) {
-      const safe = safeErrorString(e);
-      dialog.showErrorBox("MineAnvil Sign-in", safe.message);
+      const failure = authFailureFromError(e);
+      dialog.showErrorBox("MineAnvil Sign-in", failure.userMessage);
       console.warn(
         JSON.stringify({
           ts: new Date().toISOString(),
           level: "warn",
           area: "ipc",
           message: "microsoft sign-in failed",
-          meta: verbose ? safe.debug : { ...safe.debug, stack: undefined },
+          meta: verbose ? failure.debug : { ...(failure.debug ?? {}), stack: undefined },
         }),
       );
-      return { ok: false, error: safe.message } as const;
+      return { ok: false, error: failure.userMessage, failure } as const;
     }
   });
   ipcMain.handle(IPC_CHANNELS.authSignOut, async () => {
@@ -354,7 +592,14 @@ export function registerIpcHandlers(): void {
       return { ok: true } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg } as const;
+      const failure = makeFailure({
+        category: "AUTHENTICATION",
+        kind: "TEMPORARY",
+        canRetry: true,
+        userMessage: msg,
+        debug: safeErrorString(e).debug,
+      });
+      return { ok: false, error: msg, failure } as const;
     }
   });
 
@@ -364,7 +609,8 @@ export function registerIpcHandlers(): void {
       return { ok: true, plan } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg } as const;
+      const failure = looksLikeRuntimeFailure(msg) ? runtimeFailureFromError(e) : launchFailureFromError(e);
+      return { ok: false, error: msg, failure } as const;
     }
   });
 
@@ -374,7 +620,11 @@ export function registerIpcHandlers(): void {
       return { ok: true, runtime } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg } as const;
+      const failure =
+        typeof msg === "string" && msg.toLowerCase().includes("only supported on windows")
+          ? platformNotSupportedFailure({ area: "RUNTIME", actionLabel: "Runtime install" })
+          : runtimeFailureFromError(e);
+      return { ok: false, error: msg, failure } as const;
     }
   });
 
@@ -384,7 +634,8 @@ export function registerIpcHandlers(): void {
       return { ok: true, installed: status.installed, runtime: status.runtime } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, installed: false, error: msg } as const;
+      const failure = runtimeFailureFromError(e);
+      return { ok: false, installed: false, error: msg, failure } as const;
     }
   });
 
@@ -394,9 +645,9 @@ export function registerIpcHandlers(): void {
       try {
         await requireOwnedMinecraftJava();
       } catch (e) {
-        const msg = ownershipGateMessageFromError(e);
-        dialog.showErrorBox("MineAnvil — Launch blocked", msg);
-        return { ok: false, error: msg } as const;
+        const failure = ownershipFailureFromError(e);
+        dialog.showErrorBox("MineAnvil — Launch blocked", failure.userMessage);
+        return { ok: false, error: failure.userMessage, failure } as const;
       }
 
       const instance = await ensureDefaultInstance();
@@ -404,7 +655,8 @@ export function registerIpcHandlers(): void {
       return { ok: true, versionId: res.versionId, notes: res.notes } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg } as const;
+      const failure = looksLikeRuntimeFailure(msg) ? runtimeFailureFromError(e) : launchFailureFromError(e);
+      return { ok: false, error: msg, failure } as const;
     }
   });
 
@@ -424,9 +676,9 @@ export function registerIpcHandlers(): void {
           mcAccessToken: owned.mcAccessToken,
         };
       } catch (e) {
-        const msg = ownershipGateMessageFromError(e);
-        dialog.showErrorBox("MineAnvil — Launch blocked", msg);
-        return { ok: false, error: msg } as const;
+        const failure = ownershipFailureFromError(e);
+        dialog.showErrorBox("MineAnvil — Launch blocked", failure.userMessage);
+        return { ok: false, error: failure.userMessage, failure } as const;
       }
 
       const cmd = await buildVanillaLaunchCommand({ versionIdOrLatest: version, auth });
@@ -434,7 +686,8 @@ export function registerIpcHandlers(): void {
       return { ok: true, command: { javaPath: cmd.javaPath, args: safeArgs, cwd: cmd.cwd } } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg } as const;
+      const failure = looksLikeRuntimeFailure(msg) ? runtimeFailureFromError(e) : launchFailureFromError(e);
+      return { ok: false, error: msg, failure } as const;
     }
   });
 
@@ -452,16 +705,21 @@ export function registerIpcHandlers(): void {
           mcAccessToken: owned.mcAccessToken,
         };
       } catch (e) {
-        const msg = ownershipGateMessageFromError(e);
-        dialog.showErrorBox("MineAnvil — Launch blocked", msg);
-        return { ok: false, error: msg } as const;
+        const failure = ownershipFailureFromError(e);
+        dialog.showErrorBox("MineAnvil — Launch blocked", failure.userMessage);
+        return { ok: false, error: failure.userMessage, failure } as const;
       }
 
       const res = await launchVanilla({ versionIdOrLatest: version, auth });
-      return res;
+      if (res.ok) return res;
+
+      const msg = res.error ?? "Launch failed";
+      const failure = looksLikeRuntimeFailure(msg) ? runtimeFailureFromError(new Error(msg)) : launchFailureFromError(new Error(msg));
+      return { ...res, failure } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg } as const;
+      const failure = looksLikeRuntimeFailure(msg) ? runtimeFailureFromError(e) : launchFailureFromError(e);
+      return { ok: false, error: msg, failure } as const;
     }
   });
 }

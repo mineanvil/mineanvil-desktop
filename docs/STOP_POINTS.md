@@ -88,10 +88,10 @@ Definition:
 When something fails, the failure is visible, explainable, and actionable.
 
 ### Error Categorisation
-- [ ] Authentication failures are clearly identified
-- [ ] Ownership failures are clearly identified
-- [ ] Runtime failures are clearly identified
-- [ ] Launch failures are clearly identified
+- [done] Authentication failures are clearly identified
+- [done] Ownership failures are clearly identified
+- [done] Runtime failures are clearly identified
+- [done] Launch failures are clearly identified
 
 ### User Experience
 - [ ] Errors are written in plain language

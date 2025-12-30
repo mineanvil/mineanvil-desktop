@@ -40,6 +40,10 @@ function App() {
   const api = useMemo(() => getMineAnvilApi(), [])
   const logger = useMemo(() => getRendererLogger('ui'), [])
 
+  const failureMessage = useCallback((res: { error?: string; failure?: { userMessage: string } }, fallback: string) => {
+    return res.failure?.userMessage ?? res.error ?? fallback
+  }, [])
+
   const fetchStatus = useCallback(
     async (reason: 'initial' | 'refresh') => {
       setIsFetchingStatus(true)
@@ -114,7 +118,7 @@ function App() {
                           setRuntimeStatusJson(JSON.stringify(res, null, 2))
                           logger.info('getRuntimeStatus success', { installed: res.installed })
                         } else {
-                          const msg = res.error ?? 'Failed to get runtime status.'
+                          const msg = failureMessage(res, 'Failed to get runtime status.')
                           setRuntimeStatusError(msg)
                           logger.info('getRuntimeStatus failure', { ok: false })
                         }
@@ -143,7 +147,7 @@ function App() {
                           setEnsureRuntimeJson(JSON.stringify(res, null, 2))
                           logger.info('ensureRuntime success', { kind: res.runtime.kind })
                         } else {
-                          const msg = res.error ?? 'Failed to ensure runtime.'
+                          const msg = failureMessage(res, 'Failed to ensure runtime.')
                           setEnsureRuntimeError(msg)
                           logger.info('ensureRuntime failure', { ok: false })
                         }
@@ -210,7 +214,7 @@ function App() {
                             setInstallVanillaJson(JSON.stringify(res, null, 2))
                             logger.info('installVanilla success', { ok: true })
                           } else {
-                            const msg = res.error ?? 'Install failed.'
+                            const msg = failureMessage(res, 'Install failed.')
                             setInstallVanillaError(msg)
                             logger.info('installVanilla failure', { ok: false })
                           }
@@ -239,7 +243,7 @@ function App() {
                             setLaunchCmdJson(JSON.stringify(res.command, null, 2))
                             logger.info('getLaunchCommand success', { ok: true })
                           } else {
-                            const msg = res.error ?? 'Failed to get launch command.'
+                            const msg = failureMessage(res, 'Failed to get launch command.')
                             setLaunchCmdError(msg)
                             logger.info('getLaunchCommand failure', { ok: false })
                           }
@@ -268,7 +272,7 @@ function App() {
                             setLaunchVanillaJson(JSON.stringify(res, null, 2))
                             logger.info('launchVanilla success', { ok: true })
                           } else {
-                            const msg = res.error ?? 'Launch failed.'
+                            const msg = failureMessage(res, 'Launch failed.')
                             setLaunchVanillaError(msg)
                             logger.info('launchVanilla failure', { ok: false })
                           }
@@ -315,7 +319,7 @@ function App() {
                         setLaunchPlanJson(JSON.stringify(res.plan, null, 2))
                         logger.info('getLaunchPlan success', { ok: true })
                       } else {
-                        const msg = res.error ?? 'Failed to get launch plan.'
+                        const msg = failureMessage(res, 'Failed to get launch plan.')
                         setLaunchPlanError(msg)
                         logger.info('getLaunchPlan failure', { ok: false })
                       }
@@ -380,7 +384,7 @@ function App() {
                         logger.info('auth sign-out result', { ok: true })
                         await fetchStatus('refresh')
                       } else {
-                        setSignOutMessage(res.error ?? 'Sign-out failed.')
+                        setSignOutMessage(failureMessage(res, 'Sign-out failed.'))
                         logger.info('auth sign-out result', { ok: false })
                       }
                     } catch (err) {
@@ -416,7 +420,7 @@ function App() {
                         logger.info('auth sign-in result', { ok: true })
                         await fetchStatus('refresh')
                       } else {
-                        setSignInMessage(res.error ?? 'Sign-in failed.')
+                        setSignInMessage(failureMessage(res, 'Sign-in failed.'))
                         logger.info('auth sign-in result', { ok: false, error: res.error ?? '(no error provided)' })
                       }
                     } catch (err) {

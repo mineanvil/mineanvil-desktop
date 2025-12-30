@@ -27,6 +27,33 @@ export const IPC_CHANNELS = {
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
 
 /**
+ * Stop Point 1.3 — Failure Transparency
+ *
+ * A typed failure envelope so callers can distinguish:
+ * - category (auth/ownership/runtime/launch)
+ * - retryability (temporary vs permanent)
+ *
+ * SECURITY:
+ * - Never include secrets (tokens, auth codes) in `userMessage` or `debug`.
+ */
+export type FailureCategory = "AUTHENTICATION" | "OWNERSHIP" | "RUNTIME" | "LAUNCH";
+export type FailureKind = "TEMPORARY" | "PERMANENT";
+
+export interface FailureInfo {
+  readonly category: FailureCategory;
+  readonly kind: FailureKind;
+  /** Plain-language, user-facing text suitable for UI. */
+  readonly userMessage: string;
+  /**
+   * Whether retrying the same action (without changing inputs) is meaningful.
+   * Example: transient network error => true; unsupported platform => false.
+   */
+  readonly canRetry: boolean;
+  /** Optional, non-secret debug metadata for diagnostics (safe to export). */
+  readonly debug?: Record<string, unknown>;
+}
+
+/**
  * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
  * The renderer should never import from `electron` directly.
  */
@@ -65,18 +92,21 @@ export type AuthStatus =
 export interface AuthSignInResult {
   readonly ok: boolean;
   readonly error?: string;
+  readonly failure?: FailureInfo;
 }
 
 export interface GetLaunchPlanResult {
   readonly ok: boolean;
   readonly plan?: LaunchPlan;
   readonly error?: string;
+  readonly failure?: FailureInfo;
 }
 
 export interface EnsureRuntimeResult {
   readonly ok: boolean;
   readonly runtime?: RuntimeDescriptor;
   readonly error?: string;
+  readonly failure?: FailureInfo;
 }
 
 export interface GetRuntimeStatusResult {
@@ -84,6 +114,7 @@ export interface GetRuntimeStatusResult {
   readonly installed: boolean;
   readonly runtime?: RuntimeDescriptor;
   readonly error?: string;
+  readonly failure?: FailureInfo;
 }
 
 export interface InstallVanillaResult {
@@ -91,18 +122,21 @@ export interface InstallVanillaResult {
   readonly versionId?: string;
   readonly notes?: string[];
   readonly error?: string;
+  readonly failure?: FailureInfo;
 }
 
 export interface GetLaunchCommandResult {
   readonly ok: boolean;
   readonly command?: { javaPath: string; args: string[]; cwd: string };
   readonly error?: string;
+  readonly failure?: FailureInfo;
 }
 
 export interface LaunchVanillaResult {
   readonly ok: boolean;
   readonly pid?: number;
   readonly error?: string;
+  readonly failure?: FailureInfo;
 }
 
 /**
