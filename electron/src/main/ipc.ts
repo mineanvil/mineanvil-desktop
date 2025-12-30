@@ -6,7 +6,7 @@
  */
 
 import { dialog, ipcMain } from "electron";
-import { IPC_CHANNELS } from "../shared/ipc-types";
+import { IPC_CHANNELS, type AuthStatus, type OwnershipState } from "../shared/ipc-types";
 import { refreshMicrosoftAccessToken, startMicrosoftSignIn } from "./auth/oauth";
 import { clearTokens, loadTokens, saveTokens } from "./auth/tokenStore";
 import { getMinecraftAccessToken } from "./minecraft/minecraftAuth";
@@ -44,7 +44,74 @@ function safeErrorString(err: unknown): { message: string; debug: Record<string,
   return { message: msgParts.join(" "), debug };
 }
 
-function ownershipBlockedUserMessage(): string {
+function isMinecraftHttpError(err: unknown): err is { endpointName: string; status: number } {
+  if (!err || typeof err !== "object") return false;
+  const rec = err as Record<string, unknown>;
+  return typeof rec.endpointName === "string" && typeof rec.status === "number";
+}
+
+class OwnershipGateError extends Error {
+  public readonly ownershipState?: OwnershipState;
+  public readonly signedIn: boolean;
+
+  public constructor(params: { signedIn: boolean; ownershipState?: OwnershipState; message: string }) {
+    super(params.message);
+    this.name = "OwnershipGateError";
+    this.signedIn = params.signedIn;
+    this.ownershipState = params.ownershipState;
+  }
+}
+
+function classifyOwnershipStateFromError(err: unknown): OwnershipState {
+  if (isMinecraftHttpError(err)) {
+    // Mojang allow-list behavior: new third-party apps commonly get 403 on Minecraft services.
+    if (err.status === 403 && err.endpointName.startsWith("mc.")) return "UNVERIFIED_APP_NOT_APPROVED";
+    if (err.status === 429) return "UNVERIFIED_TEMPORARY";
+    if (err.status === 401) return "UNVERIFIED_TEMPORARY";
+    if (err.status >= 500) return "UNVERIFIED_TEMPORARY";
+  }
+
+  return "UNVERIFIED_TEMPORARY";
+}
+
+function ownershipBlockedUserMessage(params: { signedIn: boolean; ownershipState?: OwnershipState }): string {
+  if (!params.signedIn) {
+    return [
+      "You are signed out.",
+      "",
+      "MineAnvil blocks launching unless you are signed in and ownership can be verified.",
+      "",
+      "Next steps:",
+      "- Click Sign in",
+      "- After signing in, retry the action",
+    ].join("\n");
+  }
+
+  if (params.ownershipState === "NOT_OWNED") {
+    return [
+      "This Microsoft account does not appear to own Minecraft: Java Edition.",
+      "",
+      "MineAnvil blocks launching unless the signed-in account owns Minecraft: Java Edition.",
+      "",
+      "Next steps:",
+      "- Sign in with the Microsoft account that owns Minecraft: Java Edition",
+      "- If you don't own it yet, purchase Minecraft: Java Edition and try again",
+    ].join("\n");
+  }
+
+  if (params.ownershipState === "UNVERIFIED_APP_NOT_APPROVED") {
+    return [
+      "MineAnvil could not verify Minecraft ownership because this app is not approved/allow-listed for Minecraft services yet.",
+      "",
+      "MineAnvil blocks launching unless ownership can be verified.",
+      "",
+      "Next steps:",
+      "- Use the official Minecraft Launcher for now",
+      "- Retry later once MineAnvil is allow-listed",
+    ].join("\n");
+  }
+
+  // UNVERIFIED_TEMPORARY (or unknown): keep user messaging conservative.
   return [
     "Minecraft ownership could not be verified for this signed-in account.",
     "",
@@ -53,8 +120,16 @@ function ownershipBlockedUserMessage(): string {
     "Next steps:",
     "- Sign in with the Microsoft account that owns Minecraft: Java Edition",
     "- If you don't own it yet, purchase Minecraft: Java Edition and try again",
-    "- Retry after a moment if this is a transient network issue",
+    "- Retry after a moment (this may be a transient network/service issue)",
+    "- Check internet connectivity",
   ].join("\n");
+}
+
+function ownershipGateMessageFromError(err: unknown): string {
+  if (err instanceof OwnershipGateError) {
+    return ownershipBlockedUserMessage({ signedIn: err.signedIn, ownershipState: err.ownershipState });
+  }
+  return ownershipBlockedUserMessage({ signedIn: true, ownershipState: classifyOwnershipStateFromError(err) });
 }
 
 async function loadValidMicrosoftTokens(): Promise<Awaited<ReturnType<typeof loadTokens>> | null> {
@@ -93,18 +168,31 @@ async function requireOwnedMinecraftJava(): Promise<{
   profile: { id: string; name: string };
 }> {
   const tokens = await loadValidMicrosoftTokens();
-  if (!tokens) throw new Error("Signed out");
-
-  const { mcAccessToken } = await getMinecraftAccessToken(tokens.access_token);
-  const entitlements = await getEntitlements(mcAccessToken);
-  const owned = checkJavaOwnership(entitlements);
-
-  if (!owned.owned) {
-    throw new Error(owned.reason ? `Ownership not verified: ${owned.reason}` : "Ownership not verified");
+  if (!tokens) {
+    throw new OwnershipGateError({ signedIn: false, message: "Signed out" });
   }
 
-  const profile = await getProfile(mcAccessToken);
-  return { mcAccessToken, profile };
+  try {
+    const { mcAccessToken } = await getMinecraftAccessToken(tokens.access_token);
+    const entitlements = await getEntitlements(mcAccessToken);
+    const owned = checkJavaOwnership(entitlements);
+
+    if (!owned.owned) {
+      const state: OwnershipState = owned.reason ? "UNVERIFIED_TEMPORARY" : "NOT_OWNED";
+      throw new OwnershipGateError({
+        signedIn: true,
+        ownershipState: state,
+        message: owned.reason ? `Ownership could not be verified: ${owned.reason}` : "Minecraft not owned",
+      });
+    }
+
+    const profile = await getProfile(mcAccessToken);
+    return { mcAccessToken, profile };
+  } catch (e) {
+    if (e instanceof OwnershipGateError) throw e;
+    const state = classifyOwnershipStateFromError(e);
+    throw new OwnershipGateError({ signedIn: true, ownershipState: state, message: "Ownership check failed" });
+  }
 }
 
 function redactLaunchArgs(args: string[]): string[] {
@@ -117,6 +205,8 @@ function redactLaunchArgs(args: string[]): string[] {
   }
   return out;
 }
+
+let lastOwnershipCheckWarn: { key: string; ts: number } | null = null;
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
@@ -156,47 +246,62 @@ export function registerIpcHandlers(): void {
       }
     }
 
-    // Microsoft tokens present and (now) valid.
-    const status: {
-      signedIn: true;
-      expiresAt?: number;
-      minecraftOwned?: boolean;
-      displayName?: string;
-      uuid?: string;
-    } = {
-      signedIn: true,
-      expiresAt: tokens.expires_at,
-    };
-
     try {
+      const base: AuthStatus = {
+        signedIn: true,
+        expiresAt: tokens.expires_at,
+        ownershipState: "UNVERIFIED_TEMPORARY",
+        minecraftOwned: false,
+      };
+
       const { mcAccessToken } = await getMinecraftAccessToken(tokens.access_token);
       const entitlements = await getEntitlements(mcAccessToken);
       const owned = checkJavaOwnership(entitlements);
-      status.minecraftOwned = owned.owned;
 
-      if (owned.owned) {
-        const profile = await getProfile(mcAccessToken);
-        status.displayName = profile.name;
-        status.uuid = profile.id;
+      if (!owned.owned) {
+        return {
+          ...base,
+          ownershipState: owned.reason ? "UNVERIFIED_TEMPORARY" : "NOT_OWNED",
+          minecraftOwned: false,
+        };
       }
+
+      const profile = await getProfile(mcAccessToken);
+      return {
+        ...base,
+        ownershipState: "OWNED",
+        minecraftOwned: true,
+        displayName: profile.name,
+        uuid: profile.id,
+      };
     } catch (e) {
-      // Keep signedIn true, but mark ownership as not verified so launch gating is deterministic.
-      // Never include tokens or raw HTTP responses.
-      status.minecraftOwned = false;
+      const ownershipState = classifyOwnershipStateFromError(e);
 
+      // Never include tokens or raw HTTP responses. Dedupe to avoid log spam on frequent UI refresh.
       const safe = safeErrorString(e);
-      console.warn(
-        JSON.stringify({
-          ts: new Date().toISOString(),
-          level: "warn",
-          area: "ipc",
-          message: "minecraft ownership/profile check failed",
-          meta: verbose ? safe.debug : { ...safe.debug, stack: undefined },
-        }),
-      );
-    }
+      const key = `${ownershipState}:${safe.message}`;
+      const now = Date.now();
+      if (!lastOwnershipCheckWarn || lastOwnershipCheckWarn.key !== key || now - lastOwnershipCheckWarn.ts > 15_000) {
+        lastOwnershipCheckWarn = { key, ts: now };
+        console.warn(
+          JSON.stringify({
+            ts: new Date().toISOString(),
+            level: "warn",
+            area: "ipc",
+            message: "minecraft ownership/profile check failed",
+            meta: verbose ? safe.debug : { ...safe.debug, stack: undefined },
+          }),
+        );
+      }
 
-    return status;
+      const status: AuthStatus = {
+        signedIn: true,
+        expiresAt: tokens.expires_at,
+        ownershipState,
+        minecraftOwned: false,
+      };
+      return status;
+    }
   });
   ipcMain.handle(IPC_CHANNELS.authSignIn, async () => {
     const verbose = isVerboseEnabled(process.env);
@@ -288,8 +393,8 @@ export function registerIpcHandlers(): void {
       // Hard gate: must own Minecraft: Java Edition.
       try {
         await requireOwnedMinecraftJava();
-      } catch {
-        const msg = ownershipBlockedUserMessage();
+      } catch (e) {
+        const msg = ownershipGateMessageFromError(e);
         dialog.showErrorBox("MineAnvil — Launch blocked", msg);
         return { ok: false, error: msg } as const;
       }
@@ -318,8 +423,8 @@ export function registerIpcHandlers(): void {
           uuid: owned.profile.id,
           mcAccessToken: owned.mcAccessToken,
         };
-      } catch {
-        const msg = ownershipBlockedUserMessage();
+      } catch (e) {
+        const msg = ownershipGateMessageFromError(e);
         dialog.showErrorBox("MineAnvil — Launch blocked", msg);
         return { ok: false, error: msg } as const;
       }
@@ -346,8 +451,8 @@ export function registerIpcHandlers(): void {
           uuid: owned.profile.id,
           mcAccessToken: owned.mcAccessToken,
         };
-      } catch {
-        const msg = ownershipBlockedUserMessage();
+      } catch (e) {
+        const msg = ownershipGateMessageFromError(e);
         dialog.showErrorBox("MineAnvil — Launch blocked", msg);
         return { ok: false, error: msg } as const;
       }

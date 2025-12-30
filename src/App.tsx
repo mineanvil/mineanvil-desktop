@@ -64,7 +64,8 @@ function App() {
   }, [fetchStatus])
 
   const isBrowserMode = typeof window !== 'undefined' && !window.mineanvil
-  const launchBlocked = !authStatus?.signedIn || authStatus.minecraftOwned !== true
+  const ownershipState = authStatus?.signedIn ? authStatus.ownershipState : undefined
+  const launchBlocked = !authStatus?.signedIn || ownershipState !== 'OWNED'
 
   return (
     <>
@@ -175,8 +176,14 @@ function App() {
                 <p>Vanilla Minecraft (Windows runner)</p>
                 {launchBlocked ? (
                   <p style={{ color: 'crimson' }}>
-                    <strong>Launch blocked</strong> — sign in with an account that owns Minecraft: Java Edition (ownership must
-                    be verified).
+                    <strong>Launch blocked</strong> —{' '}
+                    {!authStatus?.signedIn
+                      ? 'sign in to verify ownership.'
+                      : ownershipState === 'NOT_OWNED'
+                        ? 'this account does not own Minecraft: Java Edition.'
+                        : ownershipState === 'UNVERIFIED_APP_NOT_APPROVED'
+                          ? 'MineAnvil is not approved/allow-listed for Minecraft services yet, so ownership cannot be verified.'
+                          : 'ownership could not be verified yet (try again later).'}
                   </p>
                 ) : null}
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -357,17 +364,9 @@ function App() {
               <p>Display name: {authStatus.displayName ?? '(unknown)'}</p>
               <p>UUID: {authStatus.uuid ?? '(unknown)'}</p>
               {typeof authStatus.expiresAt === 'number' ? <p>Expires at: {authStatus.expiresAt}</p> : null}
-              {authStatus.minecraftOwned === true ? (
-                <p>
-                  <strong>Minecraft owned</strong>
-                </p>
-              ) : authStatus.minecraftOwned === false ? (
-                <p>
-                  <strong>Minecraft not owned (or not detected yet)</strong> — check on Windows runner later
-                </p>
-              ) : (
-                <p>Minecraft ownership: (unknown)</p>
-              )}
+              <p>
+                Minecraft ownership: <strong>{authStatus.ownershipState}</strong>
+              </p>
               <button
                 onClick={() => {
                   void (async () => {
@@ -467,6 +466,8 @@ function App() {
                   }
                   anyApi.__dev?.setAuthStatus({
                     signedIn: true,
+                    ownershipState: 'OWNED',
+                    minecraftOwned: true,
                     displayName: 'Dev Player',
                     uuid: '00000000-0000-0000-0000-000000000000',
                   })

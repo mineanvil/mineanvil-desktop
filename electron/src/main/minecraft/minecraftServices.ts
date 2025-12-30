@@ -12,6 +12,18 @@ import * as https from "node:https";
 import { URL } from "node:url";
 import { createLogger, isVerboseEnabled, type LogEntry, type Logger } from "../../shared/logging";
 
+class MinecraftHttpError extends Error {
+  public readonly endpointName: string;
+  public readonly status: number;
+
+  public constructor(params: { endpointName: string; status: number }) {
+    super(`${params.endpointName} failed (HTTP ${params.status})`);
+    this.name = "MinecraftHttpError";
+    this.endpointName = params.endpointName;
+    this.status = params.status;
+  }
+}
+
 function createConsoleSink(): (entry: LogEntry) => void {
   return (entry) => {
     const line = JSON.stringify(entry);
@@ -74,7 +86,7 @@ async function getJson<T>(params: {
           }
 
           if (status < 200 || status >= 300) {
-            reject(new Error(`${params.endpointName} failed (HTTP ${status})`));
+            reject(new MinecraftHttpError({ endpointName: params.endpointName, status }));
             return;
           }
           resolve(json as T);

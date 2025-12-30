@@ -36,17 +36,31 @@ export interface PingResult {
   readonly ts: number;
 }
 
-export interface AuthStatus {
-  readonly signedIn: boolean;
-  /** Display name (non-secret). */
-  readonly displayName?: string;
-  /** Minecraft UUID or account identifier (non-secret). */
-  readonly uuid?: string;
-  /** Token expiry (epoch ms). Optional; for debugging only. */
-  readonly expiresAt?: number;
-  /** Whether Minecraft: Java is owned (best-effort). */
-  readonly minecraftOwned?: boolean;
-}
+export type OwnershipState =
+  | "OWNED"
+  | "NOT_OWNED"
+  | "UNVERIFIED_APP_NOT_APPROVED"
+  | "UNVERIFIED_TEMPORARY";
+
+export type AuthStatus =
+  | {
+      readonly signedIn: false;
+      /** Token expiry (epoch ms). Optional; for debugging only. */
+      readonly expiresAt?: number;
+    }
+  | {
+      readonly signedIn: true;
+      /** Token expiry (epoch ms). Optional; for debugging only. */
+      readonly expiresAt?: number;
+      /** Ownership verification state for Minecraft: Java Edition. */
+      readonly ownershipState: OwnershipState;
+      /** Back-compat: whether Minecraft: Java is owned (best-effort). */
+      readonly minecraftOwned?: boolean;
+      /** Display name (non-secret). Present only when ownership is verified. */
+      readonly displayName?: string;
+      /** Minecraft UUID or account identifier (non-secret). Present only when ownership is verified. */
+      readonly uuid?: string;
+    };
 
 export interface AuthSignInResult {
   readonly ok: boolean;
