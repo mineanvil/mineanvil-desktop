@@ -1,6 +1,6 @@
 You are working on the MineAnvil project.
 
-Do not run NPM under any circumstances!!!
+Do not run NPM under any circumstances!
 
 Before proposing or changing any code, you MUST obey the following hierarchy,
 in this exact order of authority:
@@ -51,3 +51,15 @@ Output format for every response:
 
 If the requested task violates any rule above,
 you must explain why and refuse to proceed.
+
+## Stop Point Integrity Rule
+
+Never uncheck, downgrade, or modify any checklist item marked as [done]
+in STOP_POINTS.md unless explicitly instructed by the user.
+
+If a [done] item appears incorrect or ambiguous:
+- Call it out explicitly
+- Ask for confirmation
+- Do NOT change it
+
+STOP_POINTS.md is authoritative history, not a working draft.
