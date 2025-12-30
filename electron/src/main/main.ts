@@ -11,6 +11,7 @@
 import { app, BrowserWindow, dialog } from "electron";
 import * as path from "node:path";
 import { createWriteStream } from "node:fs";
+import * as fs from "node:fs/promises";
 import { ensureDefaultInstanceDirs, logsDir as getLogsDir } from "./paths";
 import { registerIpcHandlers } from "./ipc";
 import { validateRequiredConfig } from "./config";
@@ -82,6 +83,43 @@ function installConsoleFileTee(params: { logFilePath: string }): void {
   });
 }
 
+async function rotateLogIfTooLarge(params: {
+  filePath: string;
+  maxBytes: number;
+  keep?: number;
+}): Promise<void> {
+  const keep = params.keep ?? 3;
+  if (keep < 1) return;
+
+  let size = 0;
+  try {
+    const st = await fs.stat(params.filePath);
+    size = st.size;
+  } catch {
+    return;
+  }
+  if (size < params.maxBytes) return;
+
+  // Shift: .(keep-1) -> .keep, then base -> .1
+  try {
+    await fs.rm(`${params.filePath}.${keep}`, { force: true });
+  } catch {
+    // ignore
+  }
+  for (let i = keep - 1; i >= 1; i--) {
+    try {
+      await fs.rename(`${params.filePath}.${i}`, `${params.filePath}.${i + 1}`);
+    } catch {
+      // ignore
+    }
+  }
+  try {
+    await fs.rename(params.filePath, `${params.filePath}.1`);
+  } catch {
+    // ignore
+  }
+}
+
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
@@ -140,7 +178,14 @@ app.whenReady().then(async () => {
   // Ensure main-process log output is persisted under instance logs directory.
   // NOTE: Do not log absolute paths.
   try {
-    const logPath = path.join(getLogsDir(), "mineanvil-main.log");
+    const logsRoot = getLogsDir();
+    const logPath = path.join(logsRoot, "mineanvil-main.log");
+    const rendererLogPath = path.join(logsRoot, "mineanvil-renderer.log");
+
+    // Keep logs bounded across long-running usage while still persisting across runs.
+    // Best-effort; never fail startup on rotation issues.
+    await rotateLogIfTooLarge({ filePath: logPath, maxBytes: 5 * 1024 * 1024, keep: 3 });
+    await rotateLogIfTooLarge({ filePath: rendererLogPath, maxBytes: 5 * 1024 * 1024, keep: 3 });
     installConsoleFileTee({ logFilePath: logPath });
   } catch {
     // Best-effort; do not fail startup if log file can't be opened.

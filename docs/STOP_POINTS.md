@@ -99,10 +99,10 @@ When something fails, the failure is visible, explainable, and actionable.
 - [done] Retry is offered only when meaningful
 
 ### Logging
-- [ ] Logs are structured and readable
-- [ ] Log locations are predictable
-- [ ] Logs persist across runs
-- [ ] Logs contain no secrets
+- [done] Logs are structured and readable
+- [done] Log locations are predictable
+- [done] Logs persist across runs
+- [done] Logs contain no secrets
 
 ---
 

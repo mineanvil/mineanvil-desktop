@@ -18,6 +18,7 @@ import { IPC_CHANNELS, type MineAnvilApi } from "../shared/ipc-types";
 
 const api: MineAnvilApi = {
   ping: async () => ipcRenderer.invoke(IPC_CHANNELS.ping),
+  appendRendererLog: async (entry) => ipcRenderer.invoke(IPC_CHANNELS.appendRendererLog, entry),
   authGetStatus: async () => ipcRenderer.invoke(IPC_CHANNELS.authGetStatus),
   authSignIn: async () => ipcRenderer.invoke(IPC_CHANNELS.authSignIn),
   authSignOut: async () => ipcRenderer.invoke(IPC_CHANNELS.authSignOut),

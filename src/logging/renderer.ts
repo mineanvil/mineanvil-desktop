@@ -6,6 +6,7 @@ import {
   type LogEntry,
   type Logger,
 } from "../../electron/src/shared/logging";
+import { getMineAnvilApi } from "../bridge/mineanvil";
 
 const store = createInMemoryLogStore(1000);
 
@@ -21,6 +22,14 @@ const sink = (entry: LogEntry) => {
   else if (entry.level === "warn") console.warn(line);
   else if (entry.level === "info") console.info(line);
   else console.debug(line);
+
+  // Best-effort: persist renderer logs to disk when running in Electron.
+  // Never block the UI on disk IO / IPC.
+  try {
+    void getMineAnvilApi().appendRendererLog(entry).catch(() => {});
+  } catch {
+    // ignore
+  }
 };
 
 /**

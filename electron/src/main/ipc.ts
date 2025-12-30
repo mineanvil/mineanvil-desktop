@@ -6,6 +6,8 @@
  */
 
 import { dialog, ipcMain } from "electron";
+import { createWriteStream, type WriteStream } from "node:fs";
+import * as path from "node:path";
 import {
   IPC_CHANNELS,
   type AuthStatus,
@@ -24,8 +26,45 @@ import { DEFAULT_RUNTIME_MANIFEST, getManagedRuntimeStatus } from "./runtime/man
 import { ensureDefaultInstance } from "./instances/instances";
 import { ensureVanillaInstalled } from "./minecraft/install";
 import { buildVanillaLaunchCommand, launchVanilla } from "./minecraft/launch";
-import { isVerboseEnabled } from "../shared/logging";
+import { formatJsonLine, isVerboseEnabled, redactSecrets, type LogEntry } from "../shared/logging";
 import { getMsClientId } from "./config";
+import { logsDir as getLogsDir } from "./paths";
+
+let rendererLogStream: WriteStream | null = null;
+
+function ensureRendererLogStream(): WriteStream | null {
+  if (rendererLogStream) return rendererLogStream;
+  try {
+    const logPath = path.join(getLogsDir(), "mineanvil-renderer.log");
+    rendererLogStream = createWriteStream(logPath, { flags: "a" });
+    process.on("exit", () => {
+      try {
+        rendererLogStream?.end();
+      } catch {
+        // ignore
+      }
+    });
+    return rendererLogStream;
+  } catch {
+    return null;
+  }
+}
+
+function appendRendererLogEntry(entry: LogEntry): void {
+  const stream = ensureRendererLogStream();
+  if (!stream) return;
+
+  try {
+    const safeEntry: LogEntry = {
+      ...entry,
+      meta: entry.meta ? (redactSecrets(entry.meta) as Record<string, unknown>) : undefined,
+    };
+    const line = formatJsonLine(safeEntry);
+    stream.write(line.endsWith("\n") ? line : `${line}\n`);
+  } catch {
+    // Best-effort; never crash or block due to logging.
+  }
+}
 
 function safeErrorString(err: unknown): { message: string; debug: Record<string, unknown> } {
   const verbose = isVerboseEnabled(process.env);
@@ -443,6 +482,10 @@ let lastOwnershipCheckWarn: { key: string; ts: number } | null = null;
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
+  ipcMain.handle(IPC_CHANNELS.appendRendererLog, async (_evt, entry: LogEntry) => {
+    appendRendererLogEntry(entry);
+    return { ok: true } as const;
+  });
   ipcMain.handle(IPC_CHANNELS.authGetStatus, async () => {
     const verbose = isVerboseEnabled(process.env);
     let tokens = await loadTokens();

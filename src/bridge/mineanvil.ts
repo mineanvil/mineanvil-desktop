@@ -1,9 +1,11 @@
 import type {
   AuthStatus,
+  AppendRendererLogResult,
   FailureInfo,
   MineAnvilApi,
   PingResult,
 } from "../../electron/src/shared/ipc-types";
+import type { LogEntry } from "../../electron/src/shared/logging";
 
 let warned = false;
 type BrowserStubApi = MineAnvilApi & { __dev: { setAuthStatus: (status: AuthStatus) => void } };
@@ -30,6 +32,7 @@ function createBrowserStub(): BrowserStubApi {
 
   const stub: BrowserStubApi = {
     ping: async (): Promise<PingResult> => ({ ok: true, ts: Date.now() }),
+    appendRendererLog: async (_entry: LogEntry): Promise<AppendRendererLogResult> => ({ ok: false }),
     authGetStatus: async (): Promise<AuthStatus> => browserAuthStatus,
     authSignIn: async () => ({
       ok: false,

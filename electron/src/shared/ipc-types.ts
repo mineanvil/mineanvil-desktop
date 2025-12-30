@@ -10,9 +10,11 @@
  */
 
 import type { LaunchPlan, RuntimeDescriptor } from "../core/types";
+import type { LogEntry } from "./logging";
 
 export const IPC_CHANNELS = {
   ping: "mineanvil:ping",
+  appendRendererLog: "mineanvil:appendRendererLog",
   authGetStatus: "mineanvil:authGetStatus",
   authSignIn: "mineanvil:authSignIn",
   authSignOut: "mineanvil:authSignOut",
@@ -61,6 +63,10 @@ export interface PingResult {
   readonly ok: boolean;
   /** Unix epoch millis. */
   readonly ts: number;
+}
+
+export interface AppendRendererLogResult {
+  readonly ok: boolean;
 }
 
 export type OwnershipState =
@@ -146,6 +152,15 @@ export interface LaunchVanillaResult {
 export interface MineAnvilApi {
   /** Test call to validate wiring. */
   ping(): Promise<PingResult>;
+
+  /**
+   * Append a structured renderer log entry to the on-disk instance logs (Electron only).
+   *
+   * SECURITY:
+   * - Never include secrets in meta; the main process applies best-effort redaction again.
+   * - This is best-effort and should never block the UI.
+   */
+  appendRendererLog(entry: LogEntry): Promise<AppendRendererLogResult>;
 
   /** Retrieve basic auth/session status for UI gating. */
   authGetStatus(): Promise<AuthStatus>;
