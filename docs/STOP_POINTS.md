@@ -72,18 +72,18 @@ Evidence / notes:
 - [done] Validation run report worksheet is documented (`docs/SP1.2-validation-run-report.md`)
 
 ### Idempotency
-- [ ] Setup steps are safe to re-run
-- [ ] No duplicated files or directories are created
-- [ ] No state corruption occurs on re-run
+- [done] Setup steps are safe to re-run
+- [done] No duplicated files or directories are created
+- [done] No state corruption occurs on re-run
 
 ### Stability
-- [ ] Instance layout remains consistent
-- [ ] Re-launch does not alter prior state unexpectedly
-- [ ] Behaviour matches previous run
+- [done] Instance layout remains consistent
+- [done] Re-launch does not alter prior state unexpectedly
+- [done] Behaviour matches previous run
 
 ### Validation
-- [ ] Multiple consecutive runs tested
-- [ ] Results are predictable and repeatable
+- [done] Multiple consecutive runs tested
+- [done] Results are predictable and repeatable
 
 ---
 

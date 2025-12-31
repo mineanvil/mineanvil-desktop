@@ -54,11 +54,6 @@ async function ensureDir(p: string): Promise<void> {
   await fs.mkdir(p, { recursive: true });
 }
 
-async function writeJson(p: string, value: unknown): Promise<void> {
-  await ensureDir(path.dirname(p));
-  await fs.writeFile(p, JSON.stringify(value, null, 2), { encoding: "utf8" });
-}
-
 async function readJsonFile<T>(p: string): Promise<T> {
   const raw = await fs.readFile(p, { encoding: "utf8" });
   return JSON.parse(raw) as T;

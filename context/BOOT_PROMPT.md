@@ -1,7 +1,5 @@
 You are working on the MineAnvil project.
 
-Do not run NPM under any circumstances!
-
 Before proposing or changing any code, you MUST obey the following hierarchy,
 in this exact order of authority:
 
