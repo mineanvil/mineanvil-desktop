@@ -1,0 +1,11 @@
+﻿{
+    "files":  {
+                  "path":  "logs\\mineanvil-renderer.log",
+                  "size":  276,
+                  "sha256":  "77146858E82F6CAEF285406161451AB9E6E1BFE27A7EA85D283EB1C96654E0BF"
+              },
+    "timestamp":  "2025-12-31T10:34:16.942Z",
+    "runNumber":  1,
+    "fileCount":  null,
+    "instanceRoot":  "C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default"
+}
