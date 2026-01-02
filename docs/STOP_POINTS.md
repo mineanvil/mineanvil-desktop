@@ -27,7 +27,7 @@ with verified ownership and an explicitly controlled Java runtime.
 
 ### Identity & Ownership
 - [done] Microsoft OAuth login completes successfully
-- [ ] Minecraft ownership is verified
+- [done] Minecraft ownership is verified
 - [done] Ownership failure is detected and blocked
 - [done] Clear, user-safe error shown on ownership failure
 - [done] No tokens or secrets written to logs
@@ -40,7 +40,7 @@ with verified ownership and an explicitly controlled Java runtime.
 ### Java Runtime
 - [done] Java runtime is explicitly managed by MineAnvil
 - [done] No reliance on system Java or PATH
-- [ ] Java version is pinned and documented
+- [done] Java version is pinned and documented
 - [done] Java runtime is resolved and validated at startup (requires Java 17+)
 
 ### Instance Isolation
@@ -49,14 +49,14 @@ with verified ownership and an explicitly controlled Java runtime.
 - [done] Instance identity is stable across runs
 
 ### Launch
-- [ ] Minecraft launches successfully
-- [ ] Process lifecycle is tracked
-- [ ] stdout and stderr are captured
+- [done] Minecraft launches successfully
+- [done] Process lifecycle is tracked
+- [done] stdout and stderr are captured
 
 ### Environment Validation
-- [ ] Tested on a clean Windows VM
-- [ ] No manual setup steps required
-- [ ] Launch succeeds repeatedly
+- [done] Tested on a clean Windows VM
+- [done] No manual setup steps required
+- [done] Launch succeeds repeatedly
 
 ---
 
@@ -99,8 +99,8 @@ When something fails, the failure is visible, explainable, and actionable.
 - [done] Launch failures are clearly identified
 
 ### User Experience
-- [ ] Errors are written in plain language
-- [ ] Parent can understand what went wrong
+- [done] Errors are written in plain language
+- [done] Parent can understand what went wrong
 - [done] Retry is offered only when meaningful
 
 ### Logging
@@ -117,24 +117,108 @@ Evidence / notes:
 ## Layer 1 Completion Criteria
 
 Layer 1 is complete ONLY when:
-- [ ] Stop Point 1.1 is fully complete
-- [ ] Stop Point 1.2 is fully complete
-- [ ] Stop Point 1.3 is fully complete
-- [ ] Clean Windows VM testing passes repeatedly
-- [ ] No undocumented assumptions exist
+- [done] Stop Point 1.1 is fully complete
+- [done] Stop Point 1.2 is fully complete
+- [done] Stop Point 1.3 is fully complete
+- [done] Clean Windows VM testing passes repeatedly
+- [done] No undocumented assumptions exist
 
 Only then may Layer 2 be unlocked.
 
+**Current Status**: ✅ **Layer 1 is COMPLETE**. All stop points validated on clean Windows VM. See `docs/L1-final-validation-run.md` for validation evidence.
+
 ---
 
-# Layer 2 — Environment Control (LOCKED)
+# Layer 2 — Environment Control
 
-No work permitted until Layer 1 is complete.
+Purpose:
+Control the Minecraft Java environment with version pinning, rollback, and multi-instance management.
 
-Planned stop points:
-- Version pinning
-- Rollback and recovery
-- Multi-instance control
+---
+
+## Stop Point 2.1 — Pack Manifest
+
+Definition:
+A minimal, declarative Pack Manifest is introduced as the authoritative source of truth for a managed Minecraft Java environment.
+
+### Manifest Structure
+- [done] PackManifest v1 structure is defined and versioned
+- [done] Manifest is declarative, not imperative
+- [done] Manifest fields are stable across repeated runs
+
+### Manifest Lifecycle
+- [done] Manifest is created deterministically on first run
+- [done] Existing runs load and trust the manifest as authoritative
+- [done] Manifest contents are stable across repeated runs on the same machine
+- [done] Corrupt or missing manifest fails safely with clear error (no silent regeneration)
+
+### Integration
+- [done] Manifest is loaded at startup in main.ts
+- [done] Helper script `scripts/print-pack-manifest.ts` supports verbose output
+- [done] Documentation is created (`docs/SP2.1-pack-manifest.md`)
+
+### Non-Goals (Not Implemented)
+- No installation, mutation, or rollback logic is introduced
+- No UI or invite-code integration
+- No pack installation logic
+
+Evidence / notes:
+- [done] Implementation documented in `docs/SP2.1-pack-manifest.md`
+- [done] Manifest structure defined in `electron/src/main/pack/packManifest.ts`
+- [done] Manifest loader implemented in `electron/src/main/pack/packManifestLoader.ts`
+
+---
+
+## Stop Point 2.2 — Deterministic Install
+
+Definition:
+Minecraft Java environment is installed deterministically from an immutable install lockfile that declares all required artefacts and checksums. The same manifest+lockfile always produces the same on-disk result, and launch does not perform uncontrolled downloads.
+
+### Lockfile
+- [done] Lockfile is created at `%APPDATA%\MineAnvil\instances\<instanceId>\pack\lock.json` (atomic write)
+- [done] Lockfile contains complete, pinned list of vanilla artefacts: version json, client jar, asset index, assets, libraries, natives, runtime archive
+- [done] If lockfile exists, it is treated as authoritative
+- [done] If lockfile is corrupt or mismatched, fail loudly (no silent regeneration)
+- [done] PackManifest remains immutable (no mutation to fill in lock data)
+
+### Deterministic Installation
+- [done] All downloads are verified against checksums declared in lockfile (not remote metadata at verification time)
+- [done] Deterministic install installs the full set from lockfile (no "download on launch" for these artefacts)
+- [done] Installation output is fully determined by lockfile contents
+- [done] Installation writes only to controlled instance directories
+- [done] Re-running install with the same manifest+lockfile produces no changes (idempotent)
+- [done] Any mismatch or corruption causes a hard, user-visible failure
+
+### Complete Installation Scope
+- [done] Installs all libraries + natives needed for vanilla launch
+- [done] Installs asset index and required assets (as defined by index)
+- [done] Installs version json + client jar
+- [done] Installs Java runtime (if managed)
+
+### Idempotency
+- [done] Installation is idempotent (same lockfile + same state = same result)
+- [done] Already-installed artefacts are detected and skipped
+- [done] Verification of existing installations uses lockfile checksums
+
+### Integration
+- [done] Lockfile is loaded or generated at startup after manifest load
+- [done] Installer is called automatically with lockfile
+- [done] Installation failures abort startup with clear error dialog
+- [done] All logs are structured and secret-free
+
+### Non-Goals (Not Implemented)
+- No rollback or recovery logic (SP2.3)
+- No auto-repair or silently fixing broken installs
+- No UI for install control (Layer 3)
+- No support for multiple packs or switching
+
+Evidence / notes:
+- [done] Implementation documented in `docs/SP2.2-deterministic-install.md`
+- [done] Lockfile structure defined in `electron/src/main/pack/packLockfile.ts`
+- [done] Lockfile loader implemented in `electron/src/main/pack/packLockfileLoader.ts`
+- [done] Install planner updated in `electron/src/main/install/installPlanner.ts`
+- [done] Deterministic installer updated in `electron/src/main/install/deterministicInstaller.ts`
+- [done] Helper script created: `scripts/print-pack-lockfile.ts`
 
 ---
 

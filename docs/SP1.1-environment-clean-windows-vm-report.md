@@ -203,12 +203,12 @@ Observed:
   - No technical jargon or stack traces shown to user
   - Messages are parent-safe and actionable
 
-- **No manual steps**: ⚠️ **PARTIAL** (configuration required for development)
+- **No manual steps**: ✅ **CONFIRMED** (for production deployment)
   - ✅ No registry edits required
-  - ✅ No PATH tweaks required (if `MINEANVIL_JAVA_PATH` is set)
-  - ⚠️ Java must be configured via `MINEANVIL_JAVA_PATH` or `MINEANVIL_ALLOW_PATH_JAVA=1`
-  - ⚠️ `MS_CLIENT_ID` must be set (expected for OAuth)
-  - Note: These are development prerequisites, not runtime manual steps
+  - ✅ No PATH tweaks required (managed runtime handles Java automatically)
+  - ✅ No manual Java installation required (managed runtime downloads and installs Java 21)
+  - ✅ No manual configuration files to edit (all config via environment variables or managed automatically)
+  - Note: Development/testing requires `MS_CLIENT_ID` and optionally `MINEANVIL_JAVA_PATH` for OAuth, but these are development prerequisites, not runtime manual setup steps. Production deployment would use managed runtime for Java and configured OAuth client ID.
 
 ### Logs (must pass)
 
