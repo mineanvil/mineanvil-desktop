@@ -18,29 +18,35 @@ function App() {
   const [signOutMessage, setSignOutMessage] = useState<string | null>(null)
   const [launchPlanJson, setLaunchPlanJson] = useState<string | null>(null)
   const [launchPlanError, setLaunchPlanError] = useState<string | null>(null)
+  const [launchPlanCanRetry, setLaunchPlanCanRetry] = useState<boolean>(true)
   const [isLoadingLaunchPlan, setIsLoadingLaunchPlan] = useState<boolean>(false)
   const [runtimeStatusJson, setRuntimeStatusJson] = useState<string | null>(null)
   const [runtimeStatusError, setRuntimeStatusError] = useState<string | null>(null)
+  const [runtimeStatusCanRetry, setRuntimeStatusCanRetry] = useState<boolean>(true)
   const [isCheckingRuntime, setIsCheckingRuntime] = useState<boolean>(false)
   const [ensureRuntimeJson, setEnsureRuntimeJson] = useState<string | null>(null)
   const [ensureRuntimeError, setEnsureRuntimeError] = useState<string | null>(null)
+  const [ensureRuntimeCanRetry, setEnsureRuntimeCanRetry] = useState<boolean>(true)
   const [isEnsuringRuntime, setIsEnsuringRuntime] = useState<boolean>(false)
   const [vanillaVersion, setVanillaVersion] = useState<string>('latest')
   const [installVanillaJson, setInstallVanillaJson] = useState<string | null>(null)
   const [installVanillaError, setInstallVanillaError] = useState<string | null>(null)
+  const [installVanillaCanRetry, setInstallVanillaCanRetry] = useState<boolean>(true)
   const [isInstallingVanilla, setIsInstallingVanilla] = useState<boolean>(false)
   const [launchCmdJson, setLaunchCmdJson] = useState<string | null>(null)
   const [launchCmdError, setLaunchCmdError] = useState<string | null>(null)
+  const [launchCmdCanRetry, setLaunchCmdCanRetry] = useState<boolean>(true)
   const [isLoadingLaunchCmd, setIsLoadingLaunchCmd] = useState<boolean>(false)
   const [launchVanillaJson, setLaunchVanillaJson] = useState<string | null>(null)
   const [launchVanillaError, setLaunchVanillaError] = useState<string | null>(null)
+  const [launchVanillaCanRetry, setLaunchVanillaCanRetry] = useState<boolean>(true)
   const [isLaunchingVanilla, setIsLaunchingVanilla] = useState<boolean>(false)
   const [tab, setTab] = useState<'home' | 'diagnostics'>('home')
 
   const api = useMemo(() => getMineAnvilApi(), [])
   const logger = useMemo(() => getRendererLogger('ui'), [])
 
-  const failureMessage = useCallback((res: { error?: string; failure?: { userMessage: string } }, fallback: string) => {
+  const failureMessage = useCallback((res: { error?: string; failure?: { userMessage: string; canRetry?: boolean } }, fallback: string) => {
     return res.failure?.userMessage ?? res.error ?? fallback
   }, [])
 
@@ -111,15 +117,19 @@ function App() {
                     void (async () => {
                       setIsCheckingRuntime(true)
                       setRuntimeStatusError(null)
+                      setRuntimeStatusCanRetry(true)
                       logger.info('getRuntimeStatus clicked')
                       try {
                         const res = await api.getRuntimeStatus()
                         if (res.ok) {
                           setRuntimeStatusJson(JSON.stringify(res, null, 2))
+                          setRuntimeStatusError(null)
+                          setRuntimeStatusCanRetry(true)
                           logger.info('getRuntimeStatus success', { installed: res.installed })
                         } else {
                           const msg = failureMessage(res, 'Failed to get runtime status.')
                           setRuntimeStatusError(msg)
+                          setRuntimeStatusCanRetry(res.failure?.canRetry ?? true)
                           logger.info('getRuntimeStatus failure', { ok: false })
                         }
                       } catch (err) {
@@ -140,15 +150,19 @@ function App() {
                     void (async () => {
                       setIsEnsuringRuntime(true)
                       setEnsureRuntimeError(null)
+                      setEnsureRuntimeCanRetry(true)
                       logger.info('ensureRuntime clicked')
                       try {
                         const res = await api.ensureRuntime()
                         if (res.ok && res.runtime) {
                           setEnsureRuntimeJson(JSON.stringify(res, null, 2))
+                          setEnsureRuntimeError(null)
+                          setEnsureRuntimeCanRetry(true)
                           logger.info('ensureRuntime success', { kind: res.runtime.kind })
                         } else {
                           const msg = failureMessage(res, 'Failed to ensure runtime.')
                           setEnsureRuntimeError(msg)
+                          setEnsureRuntimeCanRetry(res.failure?.canRetry ?? true)
                           logger.info('ensureRuntime failure', { ok: false })
                         }
                       } catch (err) {
@@ -160,24 +174,42 @@ function App() {
                       }
                     })()
                   }}
-                  disabled={isEnsuringRuntime}
+                  disabled={isEnsuringRuntime || (!ensureRuntimeCanRetry && ensureRuntimeError !== null)}
                 >
                   {isEnsuringRuntime ? 'Installing…' : 'Install runtime (Windows)'}
                 </button>
               </div>
 
-              {runtimeStatusError ? <p style={{ color: 'crimson' }}>{runtimeStatusError}</p> : null}
+              {runtimeStatusError ? (
+                <div>
+                  <p style={{ color: 'crimson' }}>{runtimeStatusError}</p>
+                  {!runtimeStatusCanRetry ? (
+                    <p style={{ color: 'orange', fontSize: '0.9em', marginTop: 4 }}>
+                      Retrying will not help. This is a permanent issue.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {runtimeStatusJson ? (
                 <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{runtimeStatusJson}</pre>
               ) : null}
 
-              {ensureRuntimeError ? <p style={{ color: 'crimson' }}>{ensureRuntimeError}</p> : null}
+              {ensureRuntimeError ? (
+                <div>
+                  <p style={{ color: 'crimson' }}>{ensureRuntimeError}</p>
+                  {!ensureRuntimeCanRetry ? (
+                    <p style={{ color: 'orange', fontSize: '0.9em', marginTop: 4 }}>
+                      Retrying will not help. This is a permanent issue.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {ensureRuntimeJson ? (
                 <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{ensureRuntimeJson}</pre>
               ) : null}
 
               <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-                <p>Vanilla Minecraft (Windows runner)</p>
+                <p>Vanilla Minecraft (Windows)</p>
                 {launchBlocked ? (
                   <p style={{ color: 'crimson' }}>
                     <strong>Launch blocked</strong> —{' '}
@@ -207,15 +239,19 @@ function App() {
                       void (async () => {
                         setIsInstallingVanilla(true)
                         setInstallVanillaError(null)
+                        setInstallVanillaCanRetry(true)
                         logger.info('installVanilla clicked', { version: vanillaVersion })
                         try {
                           const res = await api.installVanilla(vanillaVersion)
                           if (res.ok) {
                             setInstallVanillaJson(JSON.stringify(res, null, 2))
+                            setInstallVanillaError(null)
+                            setInstallVanillaCanRetry(true)
                             logger.info('installVanilla success', { ok: true })
                           } else {
                             const msg = failureMessage(res, 'Install failed.')
                             setInstallVanillaError(msg)
+                            setInstallVanillaCanRetry(res.failure?.canRetry ?? true)
                             logger.info('installVanilla failure', { ok: false })
                           }
                         } catch (err) {
@@ -227,7 +263,7 @@ function App() {
                         }
                       })()
                     }}
-                    disabled={isInstallingVanilla || launchBlocked}
+                    disabled={isInstallingVanilla || launchBlocked || (!installVanillaCanRetry && installVanillaError !== null)}
                   >
                     {isInstallingVanilla ? 'Installing…' : 'Install Vanilla (Windows)'}
                   </button>
@@ -236,15 +272,19 @@ function App() {
                       void (async () => {
                         setIsLoadingLaunchCmd(true)
                         setLaunchCmdError(null)
+                        setLaunchCmdCanRetry(true)
                         logger.info('getLaunchCommand clicked', { version: vanillaVersion })
                         try {
                           const res = await api.getLaunchCommand(vanillaVersion)
                           if (res.ok && res.command) {
                             setLaunchCmdJson(JSON.stringify(res.command, null, 2))
+                            setLaunchCmdError(null)
+                            setLaunchCmdCanRetry(true)
                             logger.info('getLaunchCommand success', { ok: true })
                           } else {
                             const msg = failureMessage(res, 'Failed to get launch command.')
                             setLaunchCmdError(msg)
+                            setLaunchCmdCanRetry(res.failure?.canRetry ?? true)
                             logger.info('getLaunchCommand failure', { ok: false })
                           }
                         } catch (err) {
@@ -256,7 +296,7 @@ function App() {
                         }
                       })()
                     }}
-                    disabled={isLoadingLaunchCmd || launchBlocked}
+                    disabled={isLoadingLaunchCmd || launchBlocked || (!launchCmdCanRetry && launchCmdError !== null)}
                   >
                     {isLoadingLaunchCmd ? 'Loading…' : 'Show Launch Command'}
                   </button>
@@ -265,15 +305,19 @@ function App() {
                       void (async () => {
                         setIsLaunchingVanilla(true)
                         setLaunchVanillaError(null)
+                        setLaunchVanillaCanRetry(true)
                         logger.info('launchVanilla clicked', { version: vanillaVersion })
                         try {
                           const res = await api.launchVanilla(vanillaVersion)
                           if (res.ok) {
                             setLaunchVanillaJson(JSON.stringify(res, null, 2))
+                            setLaunchVanillaError(null)
+                            setLaunchVanillaCanRetry(true)
                             logger.info('launchVanilla success', { ok: true })
                           } else {
                             const msg = failureMessage(res, 'Launch failed.')
                             setLaunchVanillaError(msg)
+                            setLaunchVanillaCanRetry(res.failure?.canRetry ?? true)
                             logger.info('launchVanilla failure', { ok: false })
                           }
                         } catch (err) {
@@ -285,23 +329,50 @@ function App() {
                         }
                       })()
                     }}
-                    disabled={isLaunchingVanilla || launchBlocked}
+                    disabled={isLaunchingVanilla || launchBlocked || (!launchVanillaCanRetry && launchVanillaError !== null)}
                   >
                     {isLaunchingVanilla ? 'Launching…' : 'Launch Vanilla (Windows)'}
                   </button>
                 </div>
 
-                {installVanillaError ? <p style={{ color: 'crimson' }}>{installVanillaError}</p> : null}
+                {installVanillaError ? (
+                  <div>
+                    <p style={{ color: 'crimson' }}>{installVanillaError}</p>
+                    {!installVanillaCanRetry ? (
+                      <p style={{ color: 'orange', fontSize: '0.9em', marginTop: 4 }}>
+                        Retrying will not help. This is a permanent issue.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {installVanillaJson ? (
                   <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{installVanillaJson}</pre>
                 ) : null}
 
-                {launchCmdError ? <p style={{ color: 'crimson' }}>{launchCmdError}</p> : null}
+                {launchCmdError ? (
+                  <div>
+                    <p style={{ color: 'crimson' }}>{launchCmdError}</p>
+                    {!launchCmdCanRetry ? (
+                      <p style={{ color: 'orange', fontSize: '0.9em', marginTop: 4 }}>
+                        Retrying will not help. This is a permanent issue.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {launchCmdJson ? (
                   <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{launchCmdJson}</pre>
                 ) : null}
 
-                {launchVanillaError ? <p style={{ color: 'crimson' }}>{launchVanillaError}</p> : null}
+                {launchVanillaError ? (
+                  <div>
+                    <p style={{ color: 'crimson' }}>{launchVanillaError}</p>
+                    {!launchVanillaCanRetry ? (
+                      <p style={{ color: 'orange', fontSize: '0.9em', marginTop: 4 }}>
+                        Retrying will not help. This is a permanent issue.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {launchVanillaJson ? (
                   <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 180, overflow: 'auto' }}>{launchVanillaJson}</pre>
                 ) : null}
@@ -312,15 +383,19 @@ function App() {
                   void (async () => {
                     setIsLoadingLaunchPlan(true)
                     setLaunchPlanError(null)
+                    setLaunchPlanCanRetry(true)
                     logger.info('getLaunchPlan clicked')
                     try {
                       const res = await api.getLaunchPlan()
                       if (res.ok && res.plan) {
                         setLaunchPlanJson(JSON.stringify(res.plan, null, 2))
+                        setLaunchPlanError(null)
+                        setLaunchPlanCanRetry(true)
                         logger.info('getLaunchPlan success', { ok: true })
                       } else {
                         const msg = failureMessage(res, 'Failed to get launch plan.')
                         setLaunchPlanError(msg)
+                        setLaunchPlanCanRetry(res.failure?.canRetry ?? true)
                         logger.info('getLaunchPlan failure', { ok: false })
                       }
                     } catch (err) {
@@ -332,11 +407,20 @@ function App() {
                     }
                   })()
                 }}
-                disabled={isLoadingLaunchPlan}
+                disabled={isLoadingLaunchPlan || (!launchPlanCanRetry && launchPlanError !== null)}
               >
                 {isLoadingLaunchPlan ? 'Loading…' : 'Show launch plan (dry-run)'}
               </button>
-              {launchPlanError ? <p style={{ color: 'crimson' }}>{launchPlanError}</p> : null}
+              {launchPlanError ? (
+                <div>
+                  <p style={{ color: 'crimson' }}>{launchPlanError}</p>
+                  {!launchPlanCanRetry ? (
+                    <p style={{ color: 'orange', fontSize: '0.9em', marginTop: 4 }}>
+                      Retrying will not help. This is a permanent issue.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {launchPlanJson ? (
                 <pre style={{ marginTop: 12, textAlign: 'left', maxHeight: 280, overflow: 'auto' }}>{launchPlanJson}</pre>
               ) : null}
