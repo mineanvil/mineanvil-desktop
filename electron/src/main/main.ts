@@ -16,6 +16,9 @@ import { ensureDefaultInstanceDirs, logsDir as getLogsDir } from "./paths";
 import { registerIpcHandlers } from "./ipc";
 import { validateRequiredConfig } from "./config";
 import { resolveAndValidateJavaAtStartup } from "./java";
+import { loadOrCreatePackManifest } from "./pack/packManifestLoader";
+import { loadOrGenerateLockfile } from "./pack/packLockfileLoader";
+import { installFromLockfile } from "./install/deterministicInstaller";
 
 // Ensure Electron uses a stable app name so `app.getPath("userData")` resolves to
 // a predictable folder on Windows (e.g. %APPDATA%\MineAnvil).
@@ -237,6 +240,114 @@ app.whenReady().then(async () => {
       },
     }),
   );
+
+  // Pack Manifest: load or create the manifest as the authoritative source of truth.
+  const manifest = await loadOrCreatePackManifest();
+  if (!manifest.ok) {
+    const msg = manifest.error;
+    dialog.showErrorBox("MineAnvil — Pack Manifest Error", msg);
+    console.error(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "error",
+        area: "startup",
+        message: `startup aborted: ${msg}`,
+      }),
+    );
+    app.exit(1);
+    return;
+  }
+
+  // Log manifest loaded (without sensitive details).
+  console.info(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      level: "info",
+      area: "startup",
+      message: "pack manifest loaded",
+      meta: {
+        manifestVersion: manifest.manifest.manifestVersion,
+        instanceId: manifest.manifest.instanceId,
+        createdAt: manifest.manifest.createdAt,
+      },
+    }),
+  );
+
+  // Deterministic Installation: load or generate lockfile, then install from it.
+  // This is idempotent - re-running with the same lockfile produces no changes.
+  if (manifest.manifest.minecraftVersion) {
+    // Load or generate lockfile
+    const lockfileResult = await loadOrGenerateLockfile(manifest.manifest);
+    if (!lockfileResult.ok) {
+      const msg = lockfileResult.error;
+      dialog.showErrorBox("MineAnvil — Lockfile Error", msg);
+      console.error(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          level: "error",
+          area: "startup",
+          message: `lockfile operation failed: ${msg}`,
+        }),
+      );
+      app.exit(1);
+      return;
+    }
+
+    console.info(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "info",
+        area: "startup",
+        message: "pack lockfile loaded",
+        meta: {
+          minecraftVersion: lockfileResult.lockfile.minecraftVersion,
+          artifactCount: lockfileResult.lockfile.artifacts.length,
+          generatedAt: lockfileResult.lockfile.generatedAt,
+        },
+      }),
+    );
+
+    // Install from lockfile
+    const installResult = await installFromLockfile(lockfileResult.lockfile);
+    if (!installResult.ok) {
+      const msg = installResult.error;
+      dialog.showErrorBox("MineAnvil — Installation Error", msg);
+      console.error(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          level: "error",
+          area: "startup",
+          message: `deterministic installation failed: ${msg}`,
+        }),
+      );
+      app.exit(1);
+      return;
+    }
+
+    console.info(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "info",
+        area: "startup",
+        message: "deterministic installation completed",
+        meta: {
+          minecraftVersion: installResult.result.lockfile.minecraftVersion,
+          installedCount: installResult.result.installedCount,
+          verifiedCount: installResult.result.verifiedCount,
+          skippedCount: installResult.result.skippedCount,
+        },
+      }),
+    );
+  } else {
+    console.info(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "info",
+        area: "startup",
+        message: "pack manifest has no installation requirements, skipping deterministic install",
+      }),
+    );
+  }
 
   registerIpcHandlers();
 

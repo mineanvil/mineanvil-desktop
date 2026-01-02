@@ -126,8 +126,151 @@ function platformNotSupportedFailure(params: { area: FailureCategory; actionLabe
     category: params.area,
     kind: "PERMANENT",
     canRetry: false,
-    userMessage: `${params.actionLabel} is only supported on the Windows runner right now.`,
+    userMessage: `${params.actionLabel} is only supported on Windows right now.`,
   });
+}
+
+function runtimeUserMessage(err: unknown): string {
+  const safe = safeErrorString(err);
+  const m = safe.message.toLowerCase();
+
+  // Configuration issues: permanent, no retry
+  if (m.includes("not configured") || m.includes("placeholder")) {
+    return [
+      "Java runtime is not configured yet. This is a MineAnvil setup issue.",
+      "",
+      "Next steps:",
+      "- Contact support or check MineAnvil documentation",
+    ].join("\n");
+  }
+
+  // Platform not supported: permanent, no retry
+  if (m.includes("only supported on windows") || m.includes("windows runner")) {
+    return [
+      "Java runtime installation is only supported on Windows.",
+      "",
+      "Next steps:",
+      "- Use MineAnvil on a Windows computer",
+    ].join("\n");
+  }
+
+  // Checksum mismatch: temporary, retryable
+  if (m.includes("checksum mismatch")) {
+    return [
+      "Downloaded Java runtime file is corrupted.",
+      "",
+      "Next steps:",
+      "- Try again to download a fresh copy",
+    ].join("\n");
+  }
+
+  // Download failures: temporary, retryable
+  if (m.includes("download failed") || m.includes("http")) {
+    return [
+      "Could not download Java runtime. This may be a network issue.",
+      "",
+      "Next steps:",
+      "- Check your internet connection",
+      "- Try again",
+    ].join("\n");
+  }
+
+  // Extraction failures: temporary, retryable
+  if (m.includes("expand-archive") || m.includes("extract")) {
+    return [
+      "Could not extract Java runtime files.",
+      "",
+      "Next steps:",
+      "- Try again",
+      "- Check available disk space",
+    ].join("\n");
+  }
+
+  // Installation incomplete: temporary, retryable
+  if (m.includes("java executable not found") || m.includes("install incomplete")) {
+    return [
+      "Java runtime installation is incomplete.",
+      "",
+      "Next steps:",
+      "- Try again to complete the installation",
+    ].join("\n");
+  }
+
+  // Too many redirects: temporary, retryable
+  if (m.includes("too many redirects")) {
+    return [
+      "Could not download Java runtime due to a network issue.",
+      "",
+      "Next steps:",
+      "- Try again",
+    ].join("\n");
+  }
+
+  // Generic runtime failure: temporary, retryable
+  return [
+    "Java runtime installation failed.",
+    "",
+    "Next steps:",
+    "- Check your internet connection",
+    "- Try again",
+  ].join("\n");
+}
+
+function launchUserMessage(err: unknown): string {
+  const safe = safeErrorString(err);
+  const m = safe.message.toLowerCase();
+
+  // Platform not supported: permanent, no retry
+  if (m.includes("only supported on windows") || m.includes("windows runner")) {
+    return [
+      "Minecraft launching is only supported on Windows.",
+      "",
+      "Next steps:",
+      "- Use MineAnvil on a Windows computer",
+    ].join("\n");
+  }
+
+  // Version not found: permanent, no retry
+  if (m.includes("version not found")) {
+    return [
+      "Minecraft version not found.",
+      "",
+      "Next steps:",
+      "- Check the version name and try again",
+      "- Use 'latest' to install the latest version",
+    ].join("\n");
+  }
+
+  // Process start failure: temporary, retryable
+  if (m.includes("failed to start java process") || m.includes("failed to start")) {
+    return [
+      "Could not start Minecraft.",
+      "",
+      "Next steps:",
+      "- Try again",
+      "- Check that Java runtime is installed",
+    ].join("\n");
+  }
+
+  // Early exit: temporary, retryable
+  if (m.includes("java exited early") || m.includes("exited early")) {
+    return [
+      "Minecraft stopped unexpectedly.",
+      "",
+      "Next steps:",
+      "- Try again",
+      "- Check the game logs for more details",
+    ].join("\n");
+  }
+
+  // Generic launch failure: temporary, retryable
+  return [
+    "Minecraft launch failed.",
+    "",
+    "Next steps:",
+    "- Try again",
+    "- Check your internet connection if downloading",
+  ].join("\n");
 }
 
 function isMinecraftHttpError(err: unknown): err is { endpointName: string; status: number } {
@@ -344,18 +487,18 @@ function runtimeFailureFromError(err: unknown): FailureInfo {
       category: "RUNTIME",
       kind: "PERMANENT",
       canRetry: false,
-      userMessage: safe.message,
+      userMessage: runtimeUserMessage(err),
       debug: safe.debug,
     });
   }
 
   // Unsupported platform or missing prerequisites: typically permanent for this machine.
-  if (m.includes("only supported on windows")) {
+  if (m.includes("only supported on windows") || m.includes("windows runner")) {
     return makeFailure({
       category: "RUNTIME",
       kind: "PERMANENT",
       canRetry: false,
-      userMessage: safe.message,
+      userMessage: runtimeUserMessage(err),
       debug: safe.debug,
     });
   }
@@ -365,7 +508,7 @@ function runtimeFailureFromError(err: unknown): FailureInfo {
     category: "RUNTIME",
     kind: "TEMPORARY",
     canRetry: true,
-    userMessage: safe.message,
+    userMessage: runtimeUserMessage(err),
     debug: safe.debug,
   });
 }
@@ -374,12 +517,12 @@ function launchFailureFromError(err: unknown): FailureInfo {
   const safe = safeErrorString(err);
   const m = safe.message.toLowerCase();
 
-  if (m.includes("only supported on windows")) {
+  if (m.includes("only supported on windows") || m.includes("windows runner")) {
     return makeFailure({
       category: "LAUNCH",
       kind: "PERMANENT",
       canRetry: false,
-      userMessage: safe.message,
+      userMessage: launchUserMessage(err),
       debug: safe.debug,
     });
   }
@@ -389,7 +532,7 @@ function launchFailureFromError(err: unknown): FailureInfo {
       category: "LAUNCH",
       kind: "PERMANENT",
       canRetry: false,
-      userMessage: safe.message,
+      userMessage: launchUserMessage(err),
       debug: safe.debug,
     });
   }
@@ -399,7 +542,7 @@ function launchFailureFromError(err: unknown): FailureInfo {
     category: "LAUNCH",
     kind: "TEMPORARY",
     canRetry: true,
-    userMessage: safe.message,
+    userMessage: launchUserMessage(err),
     debug: safe.debug,
   });
 }
