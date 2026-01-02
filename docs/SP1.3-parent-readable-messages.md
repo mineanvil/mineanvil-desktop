@@ -59,3 +59,4 @@ This document summarizes the error message mapping implemented for Stop Point 1.
 - `src/App.tsx` - UI integration with `canRetry` flag
 - `electron/src/shared/ipc-types.ts` - `FailureInfo` type definition
 
+

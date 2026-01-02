@@ -156,3 +156,4 @@ The manifest structure reserves fields for future use:
 - All helper scripts support verbose output (`--verbose` or `-vvv`)
 - Docker-based dev environment is assumed for tooling/scripts
 
+

@@ -45,3 +45,4 @@
   3. Electron main process after build completes
 - App is running in development mode with hot-reload capabilities
 
+

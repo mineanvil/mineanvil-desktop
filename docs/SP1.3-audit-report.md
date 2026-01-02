@@ -543,3 +543,4 @@ Errors are also displayed in the React UI (`src/App.tsx`) via:
 
 **Recommendation**: Address technical error messages in RUNTIME and LAUNCH categories, and leverage the `canRetry` flag in the UI to provide explicit retry actions or disable retry for permanent failures.
 
+
