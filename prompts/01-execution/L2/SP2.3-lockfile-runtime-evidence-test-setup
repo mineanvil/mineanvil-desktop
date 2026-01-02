@@ -1,0 +1,130 @@
+# Lockfile-only Authority - Runtime Evidence Test Setup
+
+## ✅ Setup Complete
+
+1. **Code changes implemented** - All recovery decisions now log with lockfile authority metadata
+2. **File corrupted** - Client JAR is corrupted and ready for testing
+3. **Validation scripts created** - Ready to parse evidence
+
+## 🚀 Next Steps to Get Runtime Evidence
+
+### Option 1: Quick Test (Recommended)
+
+1. **Run MineAnvil**:
+   ```powershell
+   npm run dev:electron
+   ```
+
+2. **Wait for recovery** - MineAnvil will:
+   - Detect corrupted client JAR
+   - Log recovery decision with `authority: "lockfile"` and `remoteMetadataUsed: false`
+   - Quarantine the corrupted file
+   - Re-download and verify against lockfile
+   - Promote the restored file
+
+3. **Parse evidence** (after MineAnvil completes):
+   ```powershell
+   .\scripts\validation\parse-lockfile-authority-logs.ps1
+   ```
+
+4. **Check evidence**:
+   - Evidence directory: `prompts/02-evidence/L2/sp2.3-final/<timestamp>/`
+   - Summary: `lockfile-only-authority-validation-summary.md`
+   - Formatted logs: `lockfile-only-recovery-decisions-formatted.txt`
+
+### Option 2: Automated Test
+
+```powershell
+# Run the test script (already corrupted file)
+.\scripts\validation\test-lockfile-authority.ps1
+
+# After MineAnvil completes, parse evidence:
+.\scripts\validation\test-lockfile-authority.ps1 -ParseOnly
+```
+
+## 📋 What the Evidence Will Show
+
+The logs will prove:
+
+1. **All recovery decisions use lockfile authority**:
+   - Every log entry has `meta.authority = "lockfile"`
+   - Every log entry has `meta.remoteMetadataUsed = false`
+
+2. **Expected values come from lockfile**:
+   - `meta.expected.algo` - checksum algorithm from lockfile
+   - `meta.expected.hashPrefix` - first 8 chars of expected hash from lockfile
+   - `meta.expected.size` - expected size from lockfile (if present)
+
+3. **Observed values come from filesystem**:
+   - `meta.observed.algo` - checksum algorithm used
+   - `meta.observed.hashPrefix` - first 8 chars of computed hash
+   - `meta.observed.size` - actual file size
+
+4. **Decision types logged**:
+   - `resume_from_staging` - when resuming from valid staging
+   - `redownload` - when file is missing
+   - `quarantine_then_redownload` - when file is corrupted
+   - `promote` - when promoting from staging
+   - `skip` - when file is already valid
+
+## 🔍 Example Log Entry
+
+```json
+{
+  "timestamp": "2026-01-02T20:45:00.000Z",
+  "level": "warn",
+  "area": "install.deterministic",
+  "message": "corrupted artifact detected, quarantining",
+  "name": "1.21.4.jar",
+  "path": ".minecraft/versions/1.21.4/1.21.4.jar",
+  "meta": {
+    "decision": "quarantine_then_redownload",
+    "reason": "checksum_mismatch",
+    "expected": {
+      "algo": "sha1",
+      "hashPrefix": "abc12345",
+      "size": 28345678
+    },
+    "observed": {
+      "algo": "sha1",
+      "hashPrefix": "def67890",
+      "size": 28345678
+    },
+    "authority": "lockfile",
+    "remoteMetadataUsed": false
+  }
+}
+```
+
+## ✅ Validation Checklist
+
+After running the test, verify:
+
+- [ ] At least one recovery decision log entry found
+- [ ] All entries have `meta.authority = "lockfile"`
+- [ ] All entries have `meta.remoteMetadataUsed = false`
+- [ ] All entries include `meta.expected` with lockfile values
+- [ ] All entries include `meta.observed` with filesystem values
+- [ ] No entries use remote metadata
+
+## 📁 Files Created
+
+- `scripts/validation/parse-lockfile-authority-logs.ps1` - Parse existing logs
+- `scripts/validation/test-lockfile-authority.ps1` - Complete test script
+- `scripts/validation/lockfile-only-authority-validation.ps1` - Full validation script
+- `prompts/02-evidence/L2/sp2.3-final/README-lockfile-authority-test.md` - Test guide
+
+## 🎯 Current Status
+
+- ✅ Code implementation complete
+- ✅ Structured logging added to all recovery decisions
+- ✅ Test file corrupted (ready for testing)
+- ⏳ **Waiting for: Run MineAnvil to generate runtime evidence**
+
+## 📝 Notes
+
+- The corrupted file is at: `%APPDATA%\MineAnvil\instances\default\.minecraft\versions\1.21.4\1.21.4.jar`
+- A backup was created at: `%APPDATA%\MineAnvil\instances\default\.minecraft\versions\1.21.4\1.21.4.jar.backup`
+- The file will be automatically restored after parsing evidence (if using test script)
+- Logs are at: `%APPDATA%\MineAnvil\instances\default\logs\mineanvil-main.log`
+

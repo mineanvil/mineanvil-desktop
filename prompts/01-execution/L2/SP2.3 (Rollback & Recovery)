@@ -1,0 +1,99 @@
+You are working on the MineAnvil project.
+
+BOOT CONTEXT (MUST READ FIRST)
+- Use: context/boot_prompt.md
+- Then load and follow (in order): context/00-guardrails.md, docs/STOP_POINTS.md, context/02-execution-map.md, context/05-development-plan.md, context/03-what-needs-built.md, context/01-exec-summary.md, context/04-project-summary.md
+
+STOP POINT
+Layer 2 — Stop Point 2.3 (Rollback & Recovery)
+
+GOAL
+Prove and capture evidence for the remaining unchecked SP2.3 items:
+A) Corrupted staging artifact removed + re-download
+B) Quarantine behavior for corrupted final artifact
+D) Clear failure-path with user-visible next steps
+E) Log review that recovery decisions are lockfile-based + logs contain enough diagnostic info
+
+STRICT RULES
+- Do not change app code unless a checklist item fails and a minimal fix is required for SP2.3.
+- Evidence must be saved under prompts/02-evidence/L2/sp2.3-final/<new timestamp>/.
+- Only tick STOP_POINTS.md items that are explicitly proven by evidence files/log excerpts.
+
+SETUP
+Create a new evidence folder:
+prompts/02-evidence/L2/sp2.3-final/<YYYYMMDD-HHMMSS>/
+Store outputs:
+- validation-summary.md
+- scenario-a-logs.txt, scenario-a-staging-before.txt, scenario-a-staging-after.txt
+- scenario-b-quarantine.txt, scenario-b-logs.txt
+- scenario-d-failure-path.txt (include exact dialog text if possible, otherwise log evidence of the user-facing message)
+- log-review-lockfile-only.txt
+- log-review-diagnostics-sufficient.txt
+
+SCENARIO A (Corrupted staging artifact removed + re-download)
+Operator steps (Cursor must give exact commands):
+1) Kill MineAnvil processes.
+2) Delete the Minecraft client jar final location for version 1.21.4 (force a download).
+3) Start MineAnvil and kill it mid-download so staging has a partial file.
+4) Re-run MineAnvil and verify logs show:
+   - staging artifact detected
+   - staging artifact marked corrupted/invalid
+   - corrupted staging artifact removed
+   - re-download occurred
+   - verified in staging
+   - promoted
+   - staging cleanup
+
+Capture:
+- list-staging before/after
+- parse-recovery-logs output
+- log tail filtered: staging|corrupt|remove|download|promote|cleanup
+
+SCENARIO B (Quarantine corrupted final artifact)
+Operator steps:
+1) Choose ONE library jar from lockfile (kind=library).
+2) Corrupt it in place (modify bytes, do not delete).
+3) Run MineAnvil.
+Verify:
+- checksum mismatch detected against lockfile
+- live corrupted file moved to .quarantine (not deleted)
+- quarantine logged
+- correct jar re-downloaded and ends up valid
+
+Capture:
+- list-quarantine output showing file present
+- logs showing quarantine decision
+- confirmation that final jar checksum matches lockfile (script output ok)
+
+SCENARIO D (Failure-path user-visible next steps)
+Trigger a deterministic hard failure with a clear next step.
+Preferred approach:
+- make lock.json invalid JSON temporarily (rename original first so it can be restored)
+- run MineAnvil and capture the user-facing error text (dialog) OR log message that includes next steps
+- restore original lock.json afterwards
+
+Capture:
+- exact message text and log excerpt
+
+LOG REVIEWS (no code changes unless required)
+E1) “All recovery decisions are based solely on lockfile contents”
+Find explicit evidence in logs or code-path outputs that decisions use lockfile checksums/entries, not remote metadata.
+Write a short proof in log-review-lockfile-only.txt with the exact log lines and/or code references.
+
+E2) “Logs include enough info to diagnose recovery decisions”
+Confirm logs include:
+- decision type (resume / redownload / fail)
+- artifact name+kind
+- reason (missing / checksum mismatch / corrupted staging)
+Write proof in log-review-diagnostics-sufficient.txt with examples.
+
+DOCS + STOP_POINTS
+- Update docs/SP2.3-rollback-recovery.md “Validation Evidence” with new evidence path + scenario summaries.
+- Update docs/STOP_POINTS.md to tick ONLY items proven by the new evidence.
+- Add evidence paths under SP2.3 Evidence/notes.
+
+GIT
+After success:
+git status
+git add docs/STOP_POINTS.md docs/SP2.3-rollback-recovery.md prompts/02-evidence/L2/sp2.3-final/<timestamp> scripts/validation
+git commit -m "docs(sp2.3): validate remaining scenarios A/B/D + update stop points"

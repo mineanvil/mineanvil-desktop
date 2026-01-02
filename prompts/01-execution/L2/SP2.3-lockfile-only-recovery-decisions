@@ -1,0 +1,129 @@
+# SP2.3-lockfile-only-recovery-decisions.md
+
+## TARGET (Stop Points)
+Layer 2 — Stop Point 2.3 — Rollback & Recovery
+
+Work on EXACTLY ONE checklist item:
+
+- [ ] **All recovery decisions are based solely on lockfile contents**
+
+Secondary goal (ONLY if it directly supports proving the above item and does not expand scope):
+- Improve structured logs so the evidence is provable from logs alone.
+
+DO NOT implement rollback execution. DO NOT create new stop points. DO NOT touch Layer 3.
+
+---
+
+## NON-NEGOTIABLE GUARDRAILS
+1) Do not mutate PackManifest.
+2) Do not rewrite lock.json (except where already allowed: explicit regeneration only when user deletes it, not silently).
+3) Recovery must not rely on any remote metadata (no “verify by fetching hash”, no “use remote checksum”).
+4) The ONLY authority for expected checksum/size/path is the lockfile artifact entry.
+5) Any network calls during recovery must be downloads only, and those downloads must be verified against lockfile checksums.
+6) All logs must remain structured and secret-free.
+7) Prefer minimal diffs. Avoid refactors.
+
+---
+
+## CONTEXT
+Repo: mineanvil/mineanvil-desktop
+
+SP2.3 implementation exists:
+- electron/src/main/paths.ts
+- electron/src/main/install/installPlanner.ts
+- electron/src/main/install/deterministicInstaller.ts
+- docs/SP2.3-rollback-recovery.md
+- docs/STOP_POINTS.md
+
+We have validation evidence already for scenarios A/B/B2/D in:
+prompts/02-evidence/L2/sp2.3-final/...
+prompts/02-evidence/L2/sp2.3-b2/...
+
+But STOP_POINTS.md still has unchecked:
+- [ ] All recovery decisions are based solely on lockfile contents
+
+We need to make it provable and then tick it with evidence references.
+
+---
+
+## WHAT “LOCKFILE-ONLY DECISIONS” MEANS (Definition)
+For every recovery branch (resume from staging, promote, quarantine corrupted final file, delete corrupted staging file, re-download, fail), the decision must be computed only from:
+
+- The lockfile artifact entry: path, kind, checksum(s), size if present
+- Local filesystem observation: file exists, file size, computed checksum of local file
+- Staging/quarantine/snapshot presence under controlled dirs
+
+It must NOT depend on:
+- Remote metadata endpoints (even if we already know URLs)
+- Minecraft version JSON contents as authority for checksum
+- Asset index as authority for checksum (unless the asset index itself is a lockfile artifact and only used for locating asset-object filenames that are already lockfile-pinned)
+
+If any existing code violates this, fix it.
+
+---
+
+## TASKS
+### Task A — Audit and identify any non-lockfile decision inputs
+1) Search deterministicInstaller.ts and installPlanner.ts for:
+   - any checksum verification using remote metadata
+   - any decision branches that look at anything other than lockfile + local file
+2) List each offending spot (file + line + description).
+
+### Task B — Enforce lockfile-only decision logic
+For each recovery decision point, ensure the code uses:
+- expected checksum from lockfile artifact entry
+- computed checksum from local file (or quick size mismatch where appropriate, but checksum is preferred)
+- decision result (enum style)
+
+If any logic currently uses remote metadata or a derived checksum, replace it with lockfile-only.
+
+### Task C — Add explicit structured log evidence for “lockfile-only”
+Add a small, consistent set of log fields for each decision log event, such as:
+
+- meta.decision = "resume_from_staging" | "redownload" | "quarantine_then_redownload" | "fail"
+- meta.reason = "missing" | "checksum_mismatch" | "size_mismatch" | "staging_partial" | "staging_corrupt" | "fs_error"
+- meta.expected = { algo: "sha1"|"sha256", hashPrefix: "first8", size?: number }
+- meta.observed = { algo: "...", hashPrefix: "first8", size?: number }
+- meta.authority = "lockfile"
+- meta.remoteMetadataUsed = false
+
+Rules:
+- Never log full hashes if you already avoid it elsewhere; hashPrefix is fine.
+- Never log tokens, URLs, credentials.
+
+### Task D — Update documentation & stop points
+1) Update docs/SP2.3-rollback-recovery.md with a short “Lockfile-only authority” section explaining:
+   - what is considered authoritative
+   - what is explicitly forbidden
+   - how to prove it from logs (mention the new log fields)
+
+2) Update docs/STOP_POINTS.md:
+   - Tick: **[done] All recovery decisions are based solely on lockfile contents**
+   - Under Evidence / notes, reference existing evidence folders AND explicitly state that the new log fields prove lockfile-only authority (include the evidence path where the logs are captured, or instruct how to capture them if needed).
+
+IMPORTANT: Do not tick any other unchecked items.
+
+---
+
+## VERIFICATION (Must run locally)
+Run TypeScript checks and ensure no TS errors:
+- npm run typecheck (or whatever the repo uses)
+- npm run dev:electron and simulate at least ONE recovery case quickly:
+  - corrupt one library jar (or the client jar) and confirm logs show authority=lockfile and remoteMetadataUsed=false.
+
+Capture the relevant log snippet lines to a new evidence file under:
+prompts/02-evidence/L2/sp2.3-final/<timestamp>/lockfile-only-log-proof.txt
+(or similar, consistent with the repo’s evidence structure)
+
+If you can’t run the app, still implement the code changes and add a “How to validate” section to docs.
+
+---
+
+## OUTPUTS REQUIRED
+1) A concise change summary.
+2) Exact files changed list.
+3) A git commit with message:
+   `fix(sp2.3): enforce lockfile-only recovery decisions`
+4) Confirm STOP_POINTS.md only ticked the single targeted checkbox.
+
+---

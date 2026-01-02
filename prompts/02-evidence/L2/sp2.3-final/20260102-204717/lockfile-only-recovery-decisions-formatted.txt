@@ -1,0 +1,11 @@
+﻿=== Lockfile-only Authority Evidence ===
+Timestamp: 2026-01-02 20:47:19
+Instance: default
+Log File: C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\logs\mineanvil-main.log
+
+Total Recovery Decision Logs: 0
+Logs with authority='lockfile': 0
+Logs with remoteMetadataUsed=false: 0
+
+=== Decision Entries ===
+

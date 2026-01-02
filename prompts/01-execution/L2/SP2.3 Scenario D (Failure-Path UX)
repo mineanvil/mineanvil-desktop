@@ -1,0 +1,110 @@
+You are working in the MineAnvil desktop repository.
+
+STOP POINT TARGET
+Layer 2 — Stop Point 2.3: Rollback & Recovery
+Remaining checklist item:
+
+[ ] If recovery fails, fails with clear, user-visible message that includes next steps
+
+This is the ONLY item you are allowed to advance.
+
+---
+
+OBJECTIVE
+
+Implement and validate the failure-path UX for unrecoverable recovery scenarios.
+
+When MineAnvil determines that recovery cannot continue safely, the application MUST:
+1) Show a user-visible dialog (not logs only)
+2) Use clear, parent-readable language
+3) Include explicit, actionable next steps
+4) Exit safely without mutating PackManifest or lock.json
+
+This work exists solely to satisfy the above checklist item.
+
+---
+
+CONSTRAINTS (MANDATORY)
+
+- Do NOT modify PackManifest contents
+- Do NOT rewrite lock.json
+- Do NOT introduce new recovery logic
+- Do NOT auto-fix or silently repair anything
+- Do NOT touch Layer 3 or UI polish beyond the error dialog itself
+- Follow existing guardrails and logging structure
+
+If any constraint is violated, abort.
+
+---
+
+IMPLEMENTATION TASKS
+
+1) Identify unrecoverable recovery paths
+   Search for failure branches in:
+   - electron/src/main/install/deterministicInstaller.ts
+   - electron/src/main/install/installPlanner.ts
+
+   Focus on cases where:
+   - Recovery cannot proceed
+   - Integrity cannot be guaranteed
+   - The system currently throws or exits without guaranteed user dialog
+
+2) Enforce a hard UX contract
+   In ALL unrecoverable recovery failure branches:
+   - Ensure a modal dialog is shown before exit
+   - Dialog MUST include:
+     - A clear title
+     - Plain-language explanation
+     - Explicit next steps (bullet points preferred)
+
+   Example structure (copy style, not text verbatim):
+
+   Title:
+   “Minecraft Installation Could Not Be Recovered”
+
+   Body:
+   “MineAnvil tried to recover the Minecraft installation, but was unable to do so safely.”
+
+   Next steps:
+   • Close MineAnvil and try again  
+   • If the problem continues, delete the installation and reinstall  
+   • Contact support if you need help  
+
+3) Logging
+   - Log the failure path and reason
+   - Do NOT rely on logs as the only user signal
+
+4) Validation (Scenario D)
+   Add or update validation notes/scripts so that Scenario D explicitly confirms:
+   - Dialog appears
+   - Text is clear and actionable
+   - App exits safely
+   - No manifest or lockfile mutation occurs
+
+---
+
+EVIDENCE REQUIREMENTS
+
+After implementation, update documentation to include:
+- Scenario D validation notes
+- Confirmation that dialog was shown
+- Confirmation that message is clear and actionable
+
+Do NOT mark STOP_POINTS.md yet unless Scenario D is fully satisfied.
+
+---
+
+DELIVERABLES
+
+- Code changes implementing the dialog
+- Any minimal validation updates required
+- Clear commit message describing Scenario D UX completion
+
+When finished, report:
+- Which code paths now show dialogs
+- The exact dialog text used
+- Whether the checklist item is now provable
+
+Do not perform unrelated refactors.
+Do not speculate.
+Execute only what is described above.
