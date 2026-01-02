@@ -204,6 +204,93 @@ Recovery behavior is deterministic:
    - Installation completes successfully
    - Recovery decision logged
 
+### Scenario B2: Resume from Valid Staging (No Re-download)
+
+**Objective**: Prove that valid staging artifacts are resumed without re-download when MineAnvil is interrupted after staging is complete but before promotion.
+
+**Prerequisites**:
+- Client JAR or other large artifact deleted from final location
+- Monitor script available: `scripts/validation/monitor-and-kill-download.ps1`
+
+**Steps**:
+
+1. **Prepare**: Delete a large artifact (e.g., client JAR) to force reinstall:
+   ```powershell
+   $clientJar = "$env:APPDATA\MineAnvil\instances\default\.minecraft\versions\1.21.4\1.21.4.jar"
+   Remove-Item $clientJar -Force -ErrorAction SilentlyContinue
+   ```
+
+2. **Start monitoring** (in one PowerShell window):
+   ```powershell
+   pwsh -File scripts\validation\monitor-and-kill-download.ps1 -KillOn "promote" -WaitSeconds 120 -Verbose
+   ```
+   Or use `-KillOn "verified"` to kill when staging recovery completes with recoverable artifacts.
+
+3. **Launch MineAnvil** (in another window or let the monitor script start it):
+   ```powershell
+   npm run dev:electron
+   ```
+
+4. **Wait for trigger**: The monitor script will kill MineAnvil when:
+   - `-KillOn "promote"`: Log shows `"promoting artifacts from staging to final location"`
+   - `-KillOn "verified"`: Log shows `"staging recovery complete"` with `recoverableCount > 0`
+
+5. **Verify staging contains complete artifact**:
+   ```powershell
+   pwsh -File scripts\validation\list-staging.ps1 -Verbose
+   ```
+   **Pass condition**: Staging contains a full-size artifact (not partial). For client JAR, expect ~27 MB.
+
+6. **Relaunch MineAnvil** normally:
+   ```powershell
+   npm run dev:electron
+   ```
+
+7. **Verify recovery logs**:
+   ```powershell
+   pwsh -File scripts\validation\parse-recovery-logs.ps1 -Verbose
+   ```
+
+**Pass/Fail Evidence Requirements**:
+
+✅ **PASS** if:
+- Logs show `"checking staging area for recoverable artifacts"`
+- Logs show `"recoverable artifact found in staging"` or `"staging recovery complete"` with `recoverableCount > 0`
+- Logs show `"resuming from staging area"` (if recoverable artifacts found)
+- Logs show `"promoting artifacts from staging to final location"` (no download before promote)
+- Logs do NOT show `"downloading artifact to staging"` for the recovered artifact
+- Logs show `"artifact promoted from staging"` for the recovered artifact
+- Final location contains the artifact after promotion
+- Staging directory is cleaned up after success
+
+❌ **FAIL** if:
+- Logs show `"downloading artifact to staging"` for an artifact that exists in staging
+- Staging artifact is removed and re-downloaded when it should be valid
+- Final location does not contain the artifact after recovery
+- Recovery decision is not logged
+
+**Evidence Collection**:
+```powershell
+# Capture recovery logs
+pwsh -File scripts\validation\parse-recovery-logs.ps1 -Verbose | Out-File scenario-b2-recovery-logs.txt
+
+# Capture staging status before recovery
+pwsh -File scripts\validation\list-staging.ps1 -Verbose | Out-File scenario-b2-staging-before.txt
+
+# Capture staging status after recovery (should be empty)
+# (Run after MineAnvil completes)
+pwsh -File scripts\validation\list-staging.ps1 -Verbose | Out-File scenario-b2-staging-after.txt
+
+# Verify final location
+$clientJar = "$env:APPDATA\MineAnvil\instances\default\.minecraft\versions\1.21.4\1.21.4.jar"
+if (Test-Path $clientJar) {
+    $size = (Get-Item $clientJar).Length / 1MB
+    "Client JAR exists: $([math]::Round($size, 2)) MB" | Out-File scenario-b2-final-location.txt
+} else {
+    "Client JAR does not exist" | Out-File scenario-b2-final-location.txt
+}
+```
+
 ### Corruption Recovery
 
 1. Replace a library JAR with junk bytes
@@ -242,6 +329,15 @@ Expected behavior: Clear, parent-readable error; recovery attempted; staging pre
 - `electron/src/main/install/deterministicInstaller.ts` — Updated to use staging, atomic promote, recovery, quarantine, snapshots
 - `electron/src/main/main.ts` — No changes (recovery is automatic in installer)
 - `docs/SP2.3-rollback-recovery.md` — This file
+
+## Validation Evidence
+
+### Scenario B2: Resume-from-staging no re-download
+
+**Date/Time**: 2026-01-02 17:45:48  
+**Evidence Path**: `prompts/02-evidence/L2/sp2.3-b2/20260102-174043/`
+
+**Summary**: Validation confirmed that when MineAnvil is interrupted after a staging artifact is fully downloaded and verified, the next run successfully resumes from staging without re-download. All checks passed: staging area was checked, artifact was resumed from staging, artifacts were promoted atomically, staging directory was cleaned up, no re-download occurred, final jar exists, and both manifest and lockfile remained immutable. Recovery decision path was logged throughout the process.
 
 ## Notes
 

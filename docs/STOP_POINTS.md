@@ -230,14 +230,14 @@ MineAnvil can safely recover from partial or corrupt installs of lockfile-declar
 ### Staging & Atomic Promote
 - [ ] Installation writes occur in staging area first (`%APPDATA%\MineAnvil\instances\<instanceId>\.staging\pack-install\`)
 - [ ] All artifacts are verified in staging before promotion
-- [ ] Artifacts are atomically promoted from staging to final locations (no half-written live artefacts)
-- [ ] Staging directory is cleaned up after successful promotion
+- [done] Artifacts are atomically promoted from staging to final locations (no half-written live artefacts)
+- [done] Staging directory is cleaned up after successful promotion
 
 ### Recovery from Interruption
-- [ ] If install is interrupted, next run checks staging area for recoverable artifacts
-- [ ] Valid staging artifacts are resumed (promoted directly, no re-download)
+- [done] If install is interrupted, next run checks staging area for recoverable artifacts
+- [done] Valid staging artifacts are resumed (promoted directly, no re-download)
 - [ ] Corrupted staging artifacts are removed and re-downloaded
-- [ ] Recovery decision is logged for troubleshooting
+- [done] Recovery decision is logged for troubleshooting
 - [ ] If recovery fails, fails with clear, user-visible message that includes next steps
 
 ### Last-Known-Good Snapshots
@@ -252,14 +252,14 @@ MineAnvil can safely recover from partial or corrupt installs of lockfile-declar
 - [ ] Quarantine action is logged for troubleshooting
 
 ### Immutability
-- [ ] Rollback and recovery never mutate PackManifest
-- [ ] Rollback and recovery never rewrite lock.json
+- [done] Rollback and recovery never mutate PackManifest
+- [done] Rollback and recovery never rewrite lock.json
 - [ ] All recovery decisions are based solely on lockfile contents
 
 ### Logging
-- [ ] All logging remains structured and secret-free
+- [done] All logging remains structured and secret-free
 - [ ] Logs include enough info to diagnose recovery decisions
-- [ ] Recovery decision path is logged (resume/rollback/fail)
+- [done] Recovery decision path is logged (resume/rollback/fail)
 
 ### Integration
 - [ ] Recovery is automatic on startup (no manual intervention required)
