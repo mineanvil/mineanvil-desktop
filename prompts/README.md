@@ -69,3 +69,4 @@ If a prompt cannot answer these questions, it is incorrectly placed.
 
 The authoritative list of stop points is in `docs/STOP_POINTS.md`. All work must advance exactly one stop point at a time.
 
+
