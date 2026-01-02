@@ -1,0 +1,2 @@
+﻿[2026-01-02T15:43:39.132Z] [info] resuming artifact from staging
+  Meta: {"name":"minecraft-client-1.21.4","kind":"client_jar"}

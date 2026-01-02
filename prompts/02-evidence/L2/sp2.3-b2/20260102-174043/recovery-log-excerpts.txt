@@ -1,0 +1,28 @@
+﻿[2026-01-02T14:53:21.418Z] [info] checking staging area for recoverable artifacts
+  Meta: {"stagingDir":"C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.staging\\pack-install"}
+[2026-01-02T14:54:33.070Z] [info] checking staging area for recoverable artifacts
+  Meta: {"stagingDir":"C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.staging\\pack-install"}
+[2026-01-02T14:54:43.273Z] [info] promoting artifacts from staging to final location
+  Meta: {"stagedCount":2}
+[2026-01-02T15:32:28.792Z] [info] checking staging area for recoverable artifacts
+  Meta: {"stagingDir":"C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.staging\\pack-install"}
+[2026-01-02T15:32:41.056Z] [info] promoting artifacts from staging to final location
+  Meta: {"stagedCount":1}
+[2026-01-02T15:35:44.298Z] [info] checking staging area for recoverable artifacts
+  Meta: {"stagingDir":"C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.staging\\pack-install"}
+[2026-01-02T15:35:57.498Z] [info] promoting artifacts from staging to final location
+  Meta: {"stagedCount":1}
+[2026-01-02T15:36:53.764Z] [info] checking staging area for recoverable artifacts
+  Meta: {"stagingDir":"C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.staging\\pack-install"}
+[2026-01-02T15:37:03.019Z] [info] promoting artifacts from staging to final location
+  Meta: {"stagedCount":1}
+[2026-01-02T15:39:31.949Z] [info] checking staging area for recoverable artifacts
+  Meta: {"stagingDir":"C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.staging\\pack-install"}
+[2026-01-02T15:39:46.024Z] [info] promoting artifacts from staging to final location
+  Meta: {"stagedCount":1}
+[2026-01-02T15:40:52.865Z] [info] checking staging area for recoverable artifacts
+  Meta: {"stagingDir":"C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.staging\\pack-install"}
+[2026-01-02T15:43:33.756Z] [info] checking staging area for recoverable artifacts
+  Meta: {"stagingDir":"C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.staging\\pack-install"}
+[2026-01-02T15:43:39.133Z] [info] promoting artifacts from staging to final location
+  Meta: {"stagedCount":1}
