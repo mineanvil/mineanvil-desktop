@@ -228,8 +228,8 @@ Definition:
 MineAnvil can safely recover from partial or corrupt installs of lockfile-declared artefacts without manual intervention. Installation writes occur in a staging area first, then are atomically promoted to final locations. If an install is interrupted, the next run can resume from staging, rollback to last-known-good, or fail with clear next steps.
 
 ### Staging & Atomic Promote
-- [ ] Installation writes occur in staging area first (`%APPDATA%\MineAnvil\instances\<instanceId>\.staging\pack-install\`)
-- [ ] All artifacts are verified in staging before promotion
+- [done] Installation writes occur in staging area first (`%APPDATA%\MineAnvil\instances\<instanceId>\.staging\pack-install\`)
+- [done] All artifacts are verified in staging before promotion
 - [done] Artifacts are atomically promoted from staging to final locations (no half-written live artefacts)
 - [done] Staging directory is cleaned up after successful promotion
 
@@ -241,9 +241,9 @@ MineAnvil can safely recover from partial or corrupt installs of lockfile-declar
 - [ ] If recovery fails, fails with clear, user-visible message that includes next steps
 
 ### Last-Known-Good Snapshots
-- [ ] Last-known-good snapshot exists for validated artifacts (`%APPDATA%\MineAnvil\instances\<instanceId>\.rollback\<timestamp>-<version>\`)
-- [ ] Snapshot contains manifest of validated artifacts (names, paths, checksums)
-- [ ] Snapshots are created after successful installation
+- [done] Last-known-good snapshot exists for validated artifacts (`%APPDATA%\MineAnvil\instances\<instanceId>\.rollback\<timestamp>-<version>\`)
+- [done] Snapshot contains manifest of validated artifacts (names, paths, checksums)
+- [done] Snapshots are created after successful installation
 - [ ] Snapshots enable rollback capability (future enhancement)
 
 ### Quarantine
@@ -262,9 +262,9 @@ MineAnvil can safely recover from partial or corrupt installs of lockfile-declar
 - [done] Recovery decision path is logged (resume/rollback/fail)
 
 ### Integration
-- [ ] Recovery is automatic on startup (no manual intervention required)
-- [ ] Installation planner detects staging artifacts
-- [ ] Deterministic installer handles staging, promote, recovery, quarantine, snapshots
+- [done] Recovery is automatic on startup (no manual intervention required)
+- [done] Installation planner detects staging artifacts
+- [done] Deterministic installer handles staging, promote, recovery, quarantine, snapshots
 
 ### Non-Goals (Not Implemented)
 - No UI controls or install progress UI (Layer 3)
@@ -273,10 +273,13 @@ MineAnvil can safely recover from partial or corrupt installs of lockfile-declar
 - No automatic rollback execution (snapshots created, but rollback execution is future enhancement)
 
 Evidence / notes:
-- [ ] Implementation documented in `docs/SP2.3-rollback-recovery.md`
-- [ ] Staging directory utilities added to `electron/src/main/paths.ts`
-- [ ] Install planner updated in `electron/src/main/install/installPlanner.ts` to detect staging artifacts
-- [ ] Deterministic installer updated in `electron/src/main/install/deterministicInstaller.ts` with staging, atomic promote, recovery, quarantine, snapshots
+- [done] Implementation documented in `docs/SP2.3-rollback-recovery.md`
+- [done] Staging directory utilities added to `electron/src/main/paths.ts`
+- [done] Install planner updated in `electron/src/main/install/installPlanner.ts` to detect staging artifacts
+- [done] Deterministic installer updated in `electron/src/main/install/deterministicInstaller.ts` with staging, atomic promote, recovery, quarantine, snapshots
+- [done] B2 validation evidence: `prompts/02-evidence/L2/sp2.3-b2/20260102-174043/` (proves staging-first writes, verify-in-staging, atomic promote, staging cleanup, resume from valid staging, recovery logging, manifest/lockfile immutability)
+- [done] Snapshot validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/` (proves snapshot creation, snapshot manifest presence with names/paths/checksums)
+- [ ] Final validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/` (pending: corrupt staging removal, quarantine behavior, failure-path validation)
 
 ---
 

@@ -1,0 +1,29 @@
+﻿Rollback Directory: C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\.rollback
+
+Snapshots:
+  1767368619156-1.21.4
+    Created: 2026-01-02T15:43:39.158Z
+    Minecraft Version: 1.21.4
+    Artifact Count: 4120
+  1767368386031-1.21.4
+    Created: 2026-01-02T15:39:46.032Z
+    Minecraft Version: 1.21.4
+    Artifact Count: 4120
+  1767368223030-1.21.4
+    Created: 2026-01-02T15:37:03.031Z
+    Minecraft Version: 1.21.4
+    Artifact Count: 4120
+  1767368157505-1.21.4
+    Created: 2026-01-02T15:35:57.512Z
+    Minecraft Version: 1.21.4
+    Artifact Count: 4120
+  1767367961089-1.21.4
+    Created: 2026-01-02T15:32:41.094Z
+    Minecraft Version: 1.21.4
+    Artifact Count: 4120
+  1767365683288-1.21.4
+    Created: 2026-01-02T14:54:43.290Z
+    Minecraft Version: 1.21.4
+    Artifact Count: 4120
+
+Total snapshots: 6

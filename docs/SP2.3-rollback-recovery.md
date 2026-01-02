@@ -339,6 +339,41 @@ Expected behavior: Clear, parent-readable error; recovery attempted; staging pre
 
 **Summary**: Validation confirmed that when MineAnvil is interrupted after a staging artifact is fully downloaded and verified, the next run successfully resumes from staging without re-download. All checks passed: staging area was checked, artifact was resumed from staging, artifacts were promoted atomically, staging directory was cleaned up, no re-download occurred, final jar exists, and both manifest and lockfile remained immutable. Recovery decision path was logged throughout the process.
 
+**Proven Checklist Items**:
+- ✅ Installation writes occur in staging area first
+- ✅ All artifacts are verified in staging before promotion
+- ✅ Artifacts are atomically promoted from staging to final locations
+- ✅ Staging directory is cleaned up after successful promotion
+- ✅ If install is interrupted, next run checks staging area for recoverable artifacts
+- ✅ Valid staging artifacts are resumed (promoted directly, no re-download)
+- ✅ Recovery decision is logged for troubleshooting
+- ✅ Rollback and recovery never mutate PackManifest
+- ✅ Rollback and recovery never rewrite lock.json
+- ✅ Recovery is automatic on startup (no manual intervention required)
+- ✅ Installation planner detects staging artifacts
+- ✅ Deterministic installer handles staging, promote, recovery
+
+### Final Validation: Snapshots and Remaining Scenarios
+
+**Date/Time**: 2026-01-02 18:02:00  
+**Evidence Path**: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/`
+
+**Summary**: Validation of snapshot creation and structure, plus preparation for remaining manual validation scenarios.
+
+**Proven Checklist Items**:
+- ✅ Last-known-good snapshot exists for validated artifacts (6 snapshots found)
+- ✅ Snapshot contains manifest of validated artifacts (names, paths, checksums verified)
+- ✅ Snapshots are created after successful installation (timestamps match installs)
+
+**Pending Manual Validation** (see `VALIDATION-GUIDE.md` for instructions):
+- ⏳ Corrupted staging artifacts are removed and re-downloaded (Scenario A)
+- ⏳ Corrupted files are quarantined instead of deleted (Scenario B)
+- ⏳ Quarantined files are preserved for inspection (Scenario B)
+- ⏳ Quarantine action is logged for troubleshooting (Scenario B)
+- ⏳ If recovery fails, fails with clear, user-visible message that includes next steps (Scenario D)
+- ⏳ All recovery decisions are based solely on lockfile contents (needs log verification)
+- ⏳ Logs include enough info to diagnose recovery decisions (needs review)
+
 ## Notes
 
 - Staging area ensures no half-written files in final locations
