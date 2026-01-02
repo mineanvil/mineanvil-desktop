@@ -39,6 +39,29 @@ You must NOT:
 - Refactor unrelated code
 - Invent new requirements or UX
 
+## Execution Model (Critical)
+
+MineAnvil uses a declarative, pre-mapped execution model.
+
+Unless a ticket explicitly says “inspect”, “audit”, or “explore”, you MUST assume:
+- The repository structure is already known and intentional
+- File paths listed in the ticket are authoritative
+- Missing files are meant to be created, not searched for
+
+You must NOT:
+- Explore directories to understand structure
+- Search the codebase to infer patterns
+- Perform discovery steps before implementation
+- “Check how similar things are done elsewhere” unless instructed
+
+Execution rule:
+- Implement directly against the paths and files named in the active Work Ticket.
+- If a file is listed and does not exist, create it.
+- If behaviour is unclear, ask before exploring.
+
+Violation of this rule is a failure to follow instructions.
+
+
 Output format for every response:
 
 1. Stop point targeted
