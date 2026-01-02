@@ -222,6 +222,64 @@ Evidence / notes:
 
 ---
 
+## Stop Point 2.3 — Rollback & Recovery
+
+Definition:
+MineAnvil can safely recover from partial or corrupt installs of lockfile-declared artefacts without manual intervention. Installation writes occur in a staging area first, then are atomically promoted to final locations. If an install is interrupted, the next run can resume from staging, rollback to last-known-good, or fail with clear next steps.
+
+### Staging & Atomic Promote
+- [ ] Installation writes occur in staging area first (`%APPDATA%\MineAnvil\instances\<instanceId>\.staging\pack-install\`)
+- [ ] All artifacts are verified in staging before promotion
+- [ ] Artifacts are atomically promoted from staging to final locations (no half-written live artefacts)
+- [ ] Staging directory is cleaned up after successful promotion
+
+### Recovery from Interruption
+- [ ] If install is interrupted, next run checks staging area for recoverable artifacts
+- [ ] Valid staging artifacts are resumed (promoted directly, no re-download)
+- [ ] Corrupted staging artifacts are removed and re-downloaded
+- [ ] Recovery decision is logged for troubleshooting
+- [ ] If recovery fails, fails with clear, user-visible message that includes next steps
+
+### Last-Known-Good Snapshots
+- [ ] Last-known-good snapshot exists for validated artifacts (`%APPDATA%\MineAnvil\instances\<instanceId>\.rollback\<timestamp>-<version>\`)
+- [ ] Snapshot contains manifest of validated artifacts (names, paths, checksums)
+- [ ] Snapshots are created after successful installation
+- [ ] Snapshots enable rollback capability (future enhancement)
+
+### Quarantine
+- [ ] Corrupted files are quarantined instead of deleted (`%APPDATA%\MineAnvil\instances\<instanceId>\.quarantine\`)
+- [ ] Quarantined files are preserved for inspection
+- [ ] Quarantine action is logged for troubleshooting
+
+### Immutability
+- [ ] Rollback and recovery never mutate PackManifest
+- [ ] Rollback and recovery never rewrite lock.json
+- [ ] All recovery decisions are based solely on lockfile contents
+
+### Logging
+- [ ] All logging remains structured and secret-free
+- [ ] Logs include enough info to diagnose recovery decisions
+- [ ] Recovery decision path is logged (resume/rollback/fail)
+
+### Integration
+- [ ] Recovery is automatic on startup (no manual intervention required)
+- [ ] Installation planner detects staging artifacts
+- [ ] Deterministic installer handles staging, promote, recovery, quarantine, snapshots
+
+### Non-Goals (Not Implemented)
+- No UI controls or install progress UI (Layer 3)
+- No pack switching or multiple pack support
+- No "silent repair" outside the recovery contract (no magical fixes without evidence)
+- No automatic rollback execution (snapshots created, but rollback execution is future enhancement)
+
+Evidence / notes:
+- [ ] Implementation documented in `docs/SP2.3-rollback-recovery.md`
+- [ ] Staging directory utilities added to `electron/src/main/paths.ts`
+- [ ] Install planner updated in `electron/src/main/install/installPlanner.ts` to detect staging artifacts
+- [ ] Deterministic installer updated in `electron/src/main/install/deterministicInstaller.ts` with staging, atomic promote, recovery, quarantine, snapshots
+
+---
+
 # Layer 3 — Parent UX (LOCKED)
 
 No work permitted until Layer 2 is complete.

@@ -41,6 +41,18 @@ export function minecraftDir(instanceId: string = DEFAULT_INSTANCE_ID): string {
   return path.join(instanceRoot(instanceId), ".minecraft");
 }
 
+export function stagingDir(instanceId: string = DEFAULT_INSTANCE_ID): string {
+  return path.join(instanceRoot(instanceId), ".staging", "pack-install");
+}
+
+export function rollbackDir(instanceId: string = DEFAULT_INSTANCE_ID): string {
+  return path.join(instanceRoot(instanceId), ".rollback");
+}
+
+export function quarantineDir(instanceId: string = DEFAULT_INSTANCE_ID): string {
+  return path.join(instanceRoot(instanceId), ".quarantine");
+}
+
 export async function ensureDefaultInstanceDirs(): Promise<{
   instanceRoot: string;
   logsDir: string;

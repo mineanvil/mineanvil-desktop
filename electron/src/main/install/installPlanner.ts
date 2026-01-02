@@ -1,24 +1,26 @@
 /**
  * Installation planner for deterministic install (Electron main).
  *
- * Stop Point 2.2 — Deterministic Install (Hardening).
+ * Stop Point 2.3 — Rollback & Recovery (Hardening).
  *
  * Responsibilities:
  * - Analyze lockfile to determine what needs to be installed
  * - Check current state of installed artefacts against lockfile
+ * - Check staging area for recoverable artifacts
  * - Generate a plan of what needs to be done
  *
  * Requirements:
  * - All decisions are based solely on lockfile contents
  * - Plan is deterministic (same lockfile + same state = same plan)
  * - All checksums come from lockfile, not remote metadata
+ * - Staging artifacts are detected and can be resumed
  */
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import type { PackLockfileV1, PackLockfileArtifact } from "../pack/packLockfile";
-import { instanceRoot, minecraftDir } from "../paths";
+import { instanceRoot, minecraftDir, stagingDir } from "../paths";
 import { sha1File } from "../net/downloader";
 import { createLogger, isVerboseEnabled, type LogEntry, type Logger } from "../../shared/logging";
 
@@ -44,6 +46,7 @@ export interface ArtifactPlan {
   readonly artifact: PackLockfileArtifact;
   readonly needsInstall: boolean;
   readonly needsVerification: boolean;
+  readonly inStaging: boolean;
 }
 
 export interface InstallPlan {
@@ -77,12 +80,29 @@ async function verifyChecksum(filePath: string, expected: { algo: "sha1" | "sha2
 }
 
 /**
+ * Resolve staging path for an artifact.
+ */
+function resolveStagingPath(artifact: PackLockfileArtifact, instanceId: string): string {
+  const staging = stagingDir(instanceId);
+  // Preserve the relative path structure in staging
+  if (artifact.path.startsWith(".minecraft/")) {
+    return path.join(staging, ".minecraft", artifact.path.slice(".minecraft/".length));
+  } else if (artifact.path.startsWith("runtimes/")) {
+    return path.join(staging, artifact.path);
+  } else {
+    return path.join(staging, artifact.path);
+  }
+}
+
+/**
  * Check if an artefact is installed and verified according to lockfile.
+ * Also checks staging area for recoverable artifacts.
+ * Priority: final location > staging area
  */
 async function checkArtifact(
   artifact: PackLockfileArtifact,
   instanceId: string,
-): Promise<{ installed: boolean; verified: boolean }> {
+): Promise<{ installed: boolean; verified: boolean; inStaging: boolean }> {
   const logger = getLogger();
   const instancePath = instanceRoot(instanceId);
 
@@ -99,25 +119,55 @@ async function checkArtifact(
     fullPath = path.join(instancePath, artifact.path);
   }
 
-  // Check if file exists
-  if (!(await fileExists(fullPath))) {
+  // Check final location first (takes priority)
+  const finalExists = await fileExists(fullPath);
+  if (finalExists) {
+    // Verify checksum from lockfile
+    const verified = await verifyChecksum(fullPath, artifact.checksum);
     if (isVerboseEnabled(process.env)) {
-      logger.debug("artifact not found", { name: artifact.name, path: artifact.path });
+      logger.debug("artifact check (final location)", {
+        name: artifact.name,
+        installed: true,
+        verified,
+        inStaging: false,
+      });
     }
-    return { installed: false, verified: false };
+    // Final file exists - return its state (staging is irrelevant if final is valid)
+    return { installed: true, verified, inStaging: false };
   }
 
-  // Verify checksum from lockfile
-  const verified = await verifyChecksum(fullPath, artifact.checksum);
+  // Final location doesn't exist - check staging area
+  const stagingPath = resolveStagingPath(artifact, instanceId);
+  const inStaging = await fileExists(stagingPath);
+  if (inStaging) {
+    // Verify staging artifact
+    const stagingVerified = await verifyChecksum(stagingPath, artifact.checksum);
+    if (stagingVerified) {
+      if (isVerboseEnabled(process.env)) {
+        logger.debug("artifact found in staging and verified", {
+          name: artifact.name,
+          path: artifact.path,
+        });
+      }
+      // Artifact is in staging and verified - needs promotion
+      return { installed: false, verified: false, inStaging: true };
+    } else {
+      if (isVerboseEnabled(process.env)) {
+        logger.debug("artifact found in staging but corrupted", {
+          name: artifact.name,
+          path: artifact.path,
+        });
+      }
+      // Staging artifact is corrupted - will be removed and reinstalled
+      return { installed: false, verified: false, inStaging: false };
+    }
+  }
+
+  // Neither final nor staging exists
   if (isVerboseEnabled(process.env)) {
-    logger.debug("artifact check", {
-      name: artifact.name,
-      installed: true,
-      verified,
-    });
+    logger.debug("artifact not found", { name: artifact.name, path: artifact.path });
   }
-
-  return { installed: true, verified };
+  return { installed: false, verified: false, inStaging: false };
 }
 
 /**
@@ -155,10 +205,14 @@ export async function planInstallation(
     }
 
     const state = await checkArtifact(artifact, instanceId);
+    // If final file is installed and verified, we don't need to do anything
+    // If staging exists and is valid, we need to promote it (even if final exists, to ensure consistency)
+    // If final file exists but is not verified, we need to verify it
     artifactPlans.push({
       artifact,
-      needsInstall: !state.installed,
-      needsVerification: state.installed && !state.verified,
+      needsInstall: (!state.installed && state.inStaging) || (!state.installed && !state.inStaging),
+      needsVerification: state.installed && !state.verified && !state.inStaging,
+      inStaging: state.inStaging,
     });
   }
 
