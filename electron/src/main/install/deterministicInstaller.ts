@@ -51,6 +51,53 @@ function getLogger(): Logger {
   });
 }
 
+/**
+ * Get hash prefix (first 8 characters) for logging.
+ */
+function hashPrefix(hash: string): string {
+  return hash.toLowerCase().slice(0, 8);
+}
+
+/**
+ * Format expected metadata from lockfile artifact for logging.
+ */
+function formatExpectedMetadata(artifact: PackLockfileArtifact): {
+  algo: string;
+  hashPrefix: string;
+  size?: number;
+} {
+  return {
+    algo: artifact.checksum.algo,
+    hashPrefix: hashPrefix(artifact.checksum.value),
+    size: artifact.size,
+  };
+}
+
+/**
+ * Format observed metadata from local file for logging.
+ */
+async function formatObservedMetadata(
+  filePath: string,
+  artifact: PackLockfileArtifact,
+): Promise<{ algo: string; hashPrefix: string; size?: number }> {
+  let hash: string;
+  if (artifact.checksum.algo === "sha1") {
+    hash = await sha1File(filePath);
+  } else if (artifact.checksum.algo === "sha256") {
+    const buf = await fs.readFile(filePath);
+    hash = crypto.createHash("sha256").update(buf).digest("hex");
+  } else {
+    hash = "unknown";
+  }
+
+  const stats = await fs.stat(filePath).catch(() => null);
+  return {
+    algo: artifact.checksum.algo,
+    hashPrefix: hashPrefix(hash),
+    size: stats?.size,
+  };
+}
+
 async function ensureDir(p: string): Promise<void> {
   await fs.mkdir(p, { recursive: true });
 }
@@ -220,10 +267,23 @@ async function verifyArtifactChecksum(
     }
 
     if (actual.toLowerCase() !== artifact.checksum.value.toLowerCase()) {
+      const stats = await fs.stat(filePath).catch(() => null);
       logger.error("artifact checksum mismatch", {
         name: artifact.name,
         expected: artifact.checksum.value.toLowerCase(),
         actual: actual.toLowerCase(),
+        meta: {
+          decision: "quarantine_then_redownload",
+          reason: "checksum_mismatch",
+          expected: formatExpectedMetadata(artifact),
+          observed: {
+            algo: artifact.checksum.algo,
+            hashPrefix: hashPrefix(actual),
+            size: stats?.size,
+          },
+          authority: "lockfile",
+          remoteMetadataUsed: false,
+        },
       });
       return {
         ok: false,
@@ -343,16 +403,38 @@ async function promoteArtifact(
         const verifyResult = await verifyArtifactChecksum(finalPath, artifact);
         if (!verifyResult.ok) {
           // File exists but is corrupted - quarantine it
+          const observed = await formatObservedMetadata(finalPath, artifact).catch(() => ({
+            algo: artifact.checksum.algo,
+            hashPrefix: "unknown",
+            size: undefined,
+          }));
           logger.warn("corrupted artifact detected, quarantining", {
             name: artifact.name,
             path: artifact.path,
+            meta: {
+              decision: "quarantine_then_redownload",
+              reason: "checksum_mismatch",
+              expected: formatExpectedMetadata(artifact),
+              observed,
+              authority: "lockfile",
+              remoteMetadataUsed: false,
+            },
           });
           await quarantineFile(finalPath, artifact, instanceId);
         } else {
           // File exists and is valid - skip promote
+          const observed = await formatObservedMetadata(finalPath, artifact);
           logger.debug("artifact already valid, skipping promote", {
             name: artifact.name,
             path: artifact.path,
+            meta: {
+              decision: "skip",
+              reason: "already_valid",
+              expected: formatExpectedMetadata(artifact),
+              observed,
+              authority: "lockfile",
+              remoteMetadataUsed: false,
+            },
           });
           // Remove staging file since we don't need it
           try {
@@ -473,15 +555,37 @@ async function recoverFromStaging(
         const verifyResult = await verifyArtifactChecksum(stagingPath, artifact);
         if (verifyResult.ok) {
           recoverableArtifacts.push(artifact);
+          const observed = await formatObservedMetadata(stagingPath, artifact);
           logger.debug("recoverable artifact found in staging", {
             name: artifact.name,
             path: artifact.path,
+            meta: {
+              decision: "resume_from_staging",
+              reason: "staging_valid",
+              expected: formatExpectedMetadata(artifact),
+              observed,
+              authority: "lockfile",
+              remoteMetadataUsed: false,
+            },
           });
         } else {
           // Staging file is corrupted - remove it
+          const observed = await formatObservedMetadata(stagingPath, artifact).catch(() => ({
+            algo: artifact.checksum.algo,
+            hashPrefix: "unknown",
+            size: undefined,
+          }));
           logger.warn("corrupted staging artifact removed", {
             name: artifact.name,
             path: artifact.path,
+            meta: {
+              decision: "redownload",
+              reason: "staging_corrupt",
+              expected: formatExpectedMetadata(artifact),
+              observed,
+              authority: "lockfile",
+              remoteMetadataUsed: false,
+            },
           });
           try {
             await fs.rm(stagingPath, { force: true });
@@ -571,17 +675,33 @@ export async function installFromLockfile(
     if (artifactPlan.needsInstall) {
       // Check if we can recover from staging
       if (recoverableArtifacts.has(artifactPlan.artifact.name)) {
+        const stagingPath = resolveStagingPath(artifactPlan.artifact, instanceId);
+        const observed = await formatObservedMetadata(stagingPath, artifactPlan.artifact);
         logger.info("resuming artifact from staging", {
           name: artifactPlan.artifact.name,
           kind: artifactPlan.artifact.kind,
+          meta: {
+            decision: "resume_from_staging",
+            reason: "staging_valid",
+            expected: formatExpectedMetadata(artifactPlan.artifact),
+            observed,
+            authority: "lockfile",
+            remoteMetadataUsed: false,
+          },
         });
-        const stagingPath = resolveStagingPath(artifactPlan.artifact, instanceId);
         stagedArtifacts.push({ artifact: artifactPlan.artifact, stagingPath });
         installedCount++;
       } else {
         logger.info("installing artifact to staging", {
           name: artifactPlan.artifact.name,
           kind: artifactPlan.artifact.kind,
+          meta: {
+            decision: "redownload",
+            reason: "missing",
+            expected: formatExpectedMetadata(artifactPlan.artifact),
+            authority: "lockfile",
+            remoteMetadataUsed: false,
+          },
         });
         const result = await installArtifactToStaging(artifactPlan.artifact, instanceId);
         if (!result.ok) {
@@ -602,9 +722,22 @@ export async function installFromLockfile(
       const verifyResult = await verifyArtifactChecksum(finalPath, artifactPlan.artifact);
       if (!verifyResult.ok) {
         // Corrupted file - quarantine it and reinstall
+        const observed = await formatObservedMetadata(finalPath, artifactPlan.artifact).catch(() => ({
+          algo: artifactPlan.artifact.checksum.algo,
+          hashPrefix: "unknown",
+          size: undefined,
+        }));
         logger.warn("corrupted artifact detected during verification, quarantining and reinstalling", {
           name: artifactPlan.artifact.name,
           path: artifactPlan.artifact.path,
+          meta: {
+            decision: "quarantine_then_redownload",
+            reason: "checksum_mismatch",
+            expected: formatExpectedMetadata(artifactPlan.artifact),
+            observed,
+            authority: "lockfile",
+            remoteMetadataUsed: false,
+          },
         });
         await quarantineFile(finalPath, artifactPlan.artifact, instanceId);
         quarantinedCount++;
@@ -618,11 +751,44 @@ export async function installFromLockfile(
         installedCount++;
       } else {
         // Valid - add to validated list for snapshot
+        const observed = await formatObservedMetadata(finalPath, artifactPlan.artifact);
+        if (isVerboseEnabled(process.env)) {
+          logger.debug("artifact verification successful", {
+            name: artifactPlan.artifact.name,
+            meta: {
+              decision: "skip",
+              reason: "already_valid",
+              expected: formatExpectedMetadata(artifactPlan.artifact),
+              observed,
+              authority: "lockfile",
+              remoteMetadataUsed: false,
+            },
+          });
+        }
         validatedArtifacts.push(artifactPlan.artifact);
         verifiedCount++;
       }
     } else {
       // Already installed and verified - add to validated list for snapshot
+      const finalPath = resolveFinalPath(artifactPlan.artifact, instanceId);
+      const observed = await formatObservedMetadata(finalPath, artifactPlan.artifact).catch(() => ({
+        algo: artifactPlan.artifact.checksum.algo,
+        hashPrefix: "unknown",
+        size: undefined,
+      }));
+      if (isVerboseEnabled(process.env)) {
+        logger.debug("artifact already satisfied", {
+          name: artifactPlan.artifact.name,
+          meta: {
+            decision: "skip",
+            reason: "already_valid",
+            expected: formatExpectedMetadata(artifactPlan.artifact),
+            observed,
+            authority: "lockfile",
+            remoteMetadataUsed: false,
+          },
+        });
+      }
       validatedArtifacts.push(artifactPlan.artifact);
       skippedCount++;
     }
@@ -634,6 +800,20 @@ export async function installFromLockfile(
   });
 
   for (const { artifact, stagingPath } of stagedArtifacts) {
+    const observed = await formatObservedMetadata(stagingPath, artifact);
+    if (isVerboseEnabled(process.env)) {
+      logger.debug("promoting artifact from staging", {
+        name: artifact.name,
+        meta: {
+          decision: "promote",
+          reason: "staging_valid",
+          expected: formatExpectedMetadata(artifact),
+          observed,
+          authority: "lockfile",
+          remoteMetadataUsed: false,
+        },
+      });
+    }
     const promoteResult = await promoteArtifact(artifact, stagingPath, instanceId);
     if (!promoteResult.ok) {
       return promoteResult;
