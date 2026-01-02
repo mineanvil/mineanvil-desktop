@@ -178,6 +178,56 @@ Recovery behavior is deterministic:
 - **Rollback**: If recovery fails, rollback to last-known-good (future enhancement)
 - **Fail Clearly**: If recovery is impossible, fail with clear next steps
 
+### Lockfile-only Authority
+
+All recovery decisions are based solely on lockfile contents. The lockfile is the exclusive source of truth for:
+
+- **Expected checksums**: All checksum verification uses `artifact.checksum.value` from the lockfile
+- **Expected sizes**: All size verification uses `artifact.size` from the lockfile (when present)
+- **Artifact paths**: All path resolution uses `artifact.path` from the lockfile
+- **Artifact kinds**: All kind-based logic uses `artifact.kind` from the lockfile
+
+**What is explicitly forbidden:**
+
+- Using remote metadata endpoints to verify checksums
+- Using Minecraft version JSON as authority for checksums
+- Using asset index as authority for checksums (unless the asset index itself is a lockfile artifact)
+- Fetching checksums from remote sources during recovery
+- Using any derived checksum that doesn't come from the lockfile
+
+**How to prove lockfile-only authority from logs:**
+
+All recovery decision logs include structured metadata proving lockfile-only authority:
+
+```json
+{
+  "meta": {
+    "decision": "resume_from_staging" | "redownload" | "quarantine_then_redownload" | "promote" | "skip" | "fail",
+    "reason": "missing" | "checksum_mismatch" | "size_mismatch" | "staging_partial" | "staging_corrupt" | "already_valid" | "fs_error",
+    "expected": {
+      "algo": "sha1" | "sha256",
+      "hashPrefix": "first8chars",
+      "size": 12345
+    },
+    "observed": {
+      "algo": "sha1" | "sha256",
+      "hashPrefix": "first8chars",
+      "size": 12345
+    },
+    "authority": "lockfile",
+    "remoteMetadataUsed": false
+  }
+}
+```
+
+Every recovery decision log entry includes:
+- `meta.authority = "lockfile"` - confirms lockfile is the authority
+- `meta.remoteMetadataUsed = false` - confirms no remote metadata was used
+- `meta.expected` - shows expected values from lockfile
+- `meta.observed` - shows observed values from local filesystem
+
+To verify lockfile-only authority, search logs for recovery decision entries and confirm all have `authority: "lockfile"` and `remoteMetadataUsed: false`.
+
 ## Testing
 
 ### Clean Windows Machine

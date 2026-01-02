@@ -1,0 +1,47 @@
+﻿=== Lockfile-only Authority Evidence ===
+Timestamp: 2026-01-02 20:50:11
+Instance: default
+Log File: C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\logs\mineanvil-main.log
+
+Total Recovery Decision Logs: 2
+Logs with authority='lockfile': 2
+Logs with remoteMetadataUsed=false: 2
+
+=== Decision Entries ===
+
+---
+Timestamp: 
+Level: error
+Area: install.deterministic
+Message: artifact checksum mismatch
+Decision: quarantine_then_redownload
+Reason: checksum_mismatch
+Authority: lockfile
+Remote Metadata Used: False
+Expected (from lockfile):
+  Algorithm: sha1
+  Hash Prefix: a7e5a602
+  Size: 28335587
+Observed (from filesystem):
+  Algorithm: sha1
+  Hash Prefix: a710600d
+  Size: 28335587
+
+---
+Timestamp: 
+Level: warn
+Area: install.deterministic
+Message: corrupted artifact detected during verification, quarantining and reinstalling
+Decision: quarantine_then_redownload
+Reason: checksum_mismatch
+Authority: lockfile
+Remote Metadata Used: False
+Expected (from lockfile):
+  Algorithm: sha1
+  Hash Prefix: a7e5a602
+  Size: 28335587
+Observed (from filesystem):
+  Algorithm: sha1
+  Hash Prefix: a710600d
+  Size: 28335587
+

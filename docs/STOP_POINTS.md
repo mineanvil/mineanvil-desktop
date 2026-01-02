@@ -254,11 +254,11 @@ MineAnvil can safely recover from partial or corrupt installs of lockfile-declar
 ### Immutability
 - [done] Rollback and recovery never mutate PackManifest
 - [done] Rollback and recovery never rewrite lock.json
-- [ ] All recovery decisions are based solely on lockfile contents
+- [done] All recovery decisions are based solely on lockfile contents
 
 ### Logging
 - [done] All logging remains structured and secret-free
-- [ ] Logs include enough info to diagnose recovery decisions
+- [done] Logs include enough info to diagnose recovery decisions
 - [done] Recovery decision path is logged (resume/rollback/fail)
 
 ### Integration
@@ -282,6 +282,8 @@ Evidence / notes:
 - [done] Scenario A validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-a-*` (proves corrupted staging artifacts are detected, removed, and re-downloaded - corruption detected in 8 log entries, staging removed in 4 log entries, final jar restored to correct size 27.02 MB)
 - [done] Scenario B validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-b-*` (proves corrupted final artifacts are quarantined instead of deleted - checksum mismatch detected in 4 log entries, file quarantined with timestamped name, quarantine action logged in 2 log entries, artifact re-downloaded and restored with correct checksum)
 - [done] Scenario D validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-d-*` (proves failure-path UX - error detected in 8 log entries, error visible to user via dialog, error message is clear and actionable with next steps, app exits safely without mutating manifest or lockfile)
+- [done] Lockfile-only authority: All recovery decision logs include structured metadata with `meta.authority = "lockfile"` and `meta.remoteMetadataUsed = false`. All checksum verification uses `artifact.checksum.value` from lockfile. All decision points (resume_from_staging, redownload, quarantine_then_redownload, promote, skip) log expected values from lockfile and observed values from local filesystem. Runtime evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-205008/` (proves 2 recovery decision log entries, all with `authority: "lockfile"` and `remoteMetadataUsed: false`, all include expected values from lockfile and observed values from filesystem - decision type: `quarantine_then_redownload` when corrupted file detected). See `docs/SP2.3-rollback-recovery.md` "Lockfile-only Authority" section for log structure and verification instructions.
+- [done] Lockfile-only authority validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-205008/` (proves authority="lockfile" and remoteMetadataUsed=false in recovery decision logs)
 
 ---
 
