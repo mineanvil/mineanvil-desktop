@@ -67,3 +67,4 @@ $manifest | ConvertTo-Json -Depth 10 | Out-File -Encoding UTF8 -FilePath $Output
 Write-Host "Manifest generated: $OutputPath"
 Write-Host "Files captured: $($items.Count)"
 
+
