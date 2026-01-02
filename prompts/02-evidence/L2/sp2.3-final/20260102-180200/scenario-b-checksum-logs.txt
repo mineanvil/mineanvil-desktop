@@ -1,0 +1,4 @@
+﻿[2026-01-02T17:35:59.196Z] [error] artifact checksum mismatch
+  Meta: {"name":"library-com-fasterxml-jackson-core-jackson-core-2-13-4","expected":"0cf934c681294b97ef6d80082faeefbe1edadf56","actual":"95224ca83f10294cdeafdd5efe9d045445856967"}
+[2026-01-02T17:35:59.197Z] [warn] corrupted artifact detected during verification, quarantining and reinstalling
+  Meta: {"name":"library-com-fasterxml-jackson-core-jackson-core-2-13-4","path":".minecraft/libraries/com/fasterxml/jackson/core/jackson-core/2.13.4/jackson-core-2.13.4.jar"}

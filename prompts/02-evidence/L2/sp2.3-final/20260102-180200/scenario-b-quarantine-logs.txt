@@ -1,0 +1,2 @@
+﻿[2026-01-02T17:35:59.202Z] [warn] artifact quarantined
+  Meta: {"name":"library-com-fasterxml-jackson-core-jackson-core-2-13-4","originalPath":".minecraft/libraries/com/fasterxml/jackson/core/jackson-core/2.13.4/jackson-core-2.13.4.jar","quarantinePath":"C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.quarantine\\2026-01-02T17-35-59-201Z-library-com-fasterxml-jackson-core-jackson-core-2-13-4"}

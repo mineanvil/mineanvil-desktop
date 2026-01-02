@@ -353,6 +353,36 @@ Expected behavior: Clear, parent-readable error; recovery attempted; staging pre
 - ✅ Installation planner detects staging artifacts
 - ✅ Deterministic installer handles staging, promote, recovery
 
+### Scenario A: Corrupt Staging Artifact Removal + Re-download
+
+**Date/Time**: 2026-01-02 19:27:37  
+**Evidence Path**: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-a-*`
+
+**Summary**: Validation confirmed that when a staging artifact is corrupted (bytes modified), MineAnvil detects the corruption, removes the corrupted staging artifact, re-downloads the artifact to staging, verifies it, promotes it atomically, and cleans up staging. Corruption was detected in 8 log entries, staging was removed in 4 log entries, and the final jar was restored to the correct size (27.02 MB).
+
+**Proven Checklist Items**:
+- ✅ Corrupted staging artifacts are detected
+- ✅ Corrupted staging artifacts are removed
+- ✅ Artifacts are re-downloaded to staging
+- ✅ Artifacts are verified in staging
+- ✅ Artifacts are promoted atomically
+- ✅ Staging directory is cleaned up
+
+### Scenario B: Corrupted Final Artifact Quarantine
+
+**Date/Time**: 2026-01-02 19:36:49  
+**Evidence Path**: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-b-*`
+
+**Summary**: Validation confirmed that when a final artifact is corrupted (bytes modified), MineAnvil detects the checksum mismatch, quarantines the corrupted file instead of deleting it, logs the quarantine action, re-downloads the artifact to staging, promotes it atomically, and restores the artifact with the correct checksum. Checksum mismatch was detected in 4 log entries, the file was quarantined with a timestamped name, quarantine action was logged in 2 log entries, and the artifact was re-downloaded and restored with the correct checksum.
+
+**Proven Checklist Items**:
+- ✅ Checksum mismatch detected against lockfile
+- ✅ Corrupted files are quarantined instead of deleted
+- ✅ Quarantined files are preserved for inspection
+- ✅ Quarantine action is logged for troubleshooting
+- ✅ Artifact re-downloaded and promoted cleanly
+- ✅ Final artifact restored and checksum matches lockfile
+
 ### Final Validation: Snapshots and Remaining Scenarios
 
 **Date/Time**: 2026-01-02 18:02:00  
@@ -365,12 +395,27 @@ Expected behavior: Clear, parent-readable error; recovery attempted; staging pre
 - ✅ Snapshot contains manifest of validated artifacts (names, paths, checksums verified)
 - ✅ Snapshots are created after successful installation (timestamps match installs)
 
+### Scenario D: Failure-Path Validation
+
+**Date/Time**: 2026-01-02 20:25:29  
+**Evidence Path**: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-d-*`
+
+**Summary**: Validation confirmed that when recovery fails (e.g., corrupted lockfile), MineAnvil shows a user-visible error dialog with clear, parent-readable language and explicit actionable next steps. Error was detected in 8 log entries, error is visible to user, error message is clear and understandable, and error contains actionable next steps. The dialog is shown via `dialog.showErrorBox()` with formatted messages that include bullet-pointed next steps and file locations when applicable.
+
+**Proven Checklist Items**:
+- ✅ Error detected and logged
+- ✅ Error visible to user (dialog shown)
+- ✅ Error message is clear and understandable
+- ✅ Error contains actionable next steps
+- ✅ App exits safely without mutating PackManifest or lock.json
+
+**Implementation Details**:
+- Added `formatInstallationErrorMessage()` helper function to format installation/recovery errors
+- Added `formatLockfileErrorMessage()` helper function to format lockfile errors
+- Updated `main.ts` to use helper functions for all installation and lockfile errors
+- Error dialogs include clear titles, plain-language explanations, and bullet-pointed next steps
+
 **Pending Manual Validation** (see `VALIDATION-GUIDE.md` for instructions):
-- ⏳ Corrupted staging artifacts are removed and re-downloaded (Scenario A)
-- ⏳ Corrupted files are quarantined instead of deleted (Scenario B)
-- ⏳ Quarantined files are preserved for inspection (Scenario B)
-- ⏳ Quarantine action is logged for troubleshooting (Scenario B)
-- ⏳ If recovery fails, fails with clear, user-visible message that includes next steps (Scenario D)
 - ⏳ All recovery decisions are based solely on lockfile contents (needs log verification)
 - ⏳ Logs include enough info to diagnose recovery decisions (needs review)
 

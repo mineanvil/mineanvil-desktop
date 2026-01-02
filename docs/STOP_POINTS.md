@@ -236,9 +236,9 @@ MineAnvil can safely recover from partial or corrupt installs of lockfile-declar
 ### Recovery from Interruption
 - [done] If install is interrupted, next run checks staging area for recoverable artifacts
 - [done] Valid staging artifacts are resumed (promoted directly, no re-download)
-- [ ] Corrupted staging artifacts are removed and re-downloaded
+- [done] Corrupted staging artifacts are removed and re-downloaded
 - [done] Recovery decision is logged for troubleshooting
-- [ ] If recovery fails, fails with clear, user-visible message that includes next steps
+- [done] If recovery fails, fails with clear, user-visible message that includes next steps
 
 ### Last-Known-Good Snapshots
 - [done] Last-known-good snapshot exists for validated artifacts (`%APPDATA%\MineAnvil\instances\<instanceId>\.rollback\<timestamp>-<version>\`)
@@ -247,9 +247,9 @@ MineAnvil can safely recover from partial or corrupt installs of lockfile-declar
 - [ ] Snapshots enable rollback capability (future enhancement)
 
 ### Quarantine
-- [ ] Corrupted files are quarantined instead of deleted (`%APPDATA%\MineAnvil\instances\<instanceId>\.quarantine\`)
-- [ ] Quarantined files are preserved for inspection
-- [ ] Quarantine action is logged for troubleshooting
+- [done] Corrupted files are quarantined instead of deleted (`%APPDATA%\MineAnvil\instances\<instanceId>\.quarantine\`)
+- [done] Quarantined files are preserved for inspection
+- [done] Quarantine action is logged for troubleshooting
 
 ### Immutability
 - [done] Rollback and recovery never mutate PackManifest
@@ -279,7 +279,9 @@ Evidence / notes:
 - [done] Deterministic installer updated in `electron/src/main/install/deterministicInstaller.ts` with staging, atomic promote, recovery, quarantine, snapshots
 - [done] B2 validation evidence: `prompts/02-evidence/L2/sp2.3-b2/20260102-174043/` (proves staging-first writes, verify-in-staging, atomic promote, staging cleanup, resume from valid staging, recovery logging, manifest/lockfile immutability)
 - [done] Snapshot validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/` (proves snapshot creation, snapshot manifest presence with names/paths/checksums)
-- [ ] Final validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/` (pending: corrupt staging removal, quarantine behavior, failure-path validation)
+- [done] Scenario A validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-a-*` (proves corrupted staging artifacts are detected, removed, and re-downloaded - corruption detected in 8 log entries, staging removed in 4 log entries, final jar restored to correct size 27.02 MB)
+- [done] Scenario B validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-b-*` (proves corrupted final artifacts are quarantined instead of deleted - checksum mismatch detected in 4 log entries, file quarantined with timestamped name, quarantine action logged in 2 log entries, artifact re-downloaded and restored with correct checksum)
+- [done] Scenario D validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-d-*` (proves failure-path UX - error detected in 8 log entries, error visible to user via dialog, error message is clear and actionable with next steps, app exits safely without mutating manifest or lockfile)
 
 ---
 

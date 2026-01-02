@@ -20,6 +20,171 @@ import { loadOrCreatePackManifest } from "./pack/packManifestLoader";
 import { loadOrGenerateLockfile } from "./pack/packLockfileLoader";
 import { installFromLockfile } from "./install/deterministicInstaller";
 
+/**
+ * Format lockfile error messages into parent-readable text with actionable next steps.
+ */
+function formatLockfileErrorMessage(error: string): string {
+  const lowerError = error.toLowerCase();
+
+  // Lockfile corruption: unrecoverable, needs manual intervention
+  if (lowerError.includes("corrupt") || lowerError.includes("invalid") || lowerError.includes("parse")) {
+    return [
+      "Minecraft Installation Configuration Is Corrupted",
+      "",
+      "The installation configuration file is corrupted and cannot be used.",
+      "",
+      "Next steps:",
+      "• Close MineAnvil",
+      "• Delete the corrupted configuration file",
+      "  (Location: %APPDATA%\\MineAnvil\\instances\\default\\pack\\lock.json)",
+      "• Restart MineAnvil to regenerate the configuration",
+      "• Contact support if the problem continues",
+    ].join("\n");
+  }
+
+  // Version mismatch: unrecoverable, needs manual intervention
+  if (lowerError.includes("version mismatch") || lowerError.includes("mismatch")) {
+    return [
+      "Minecraft Version Mismatch",
+      "",
+      "The installation configuration does not match the expected Minecraft version.",
+      "",
+      "Next steps:",
+      "• Close MineAnvil",
+      "• Delete the configuration file to regenerate it",
+      "  (Location: %APPDATA%\\MineAnvil\\instances\\default\\pack\\lock.json)",
+      "• Restart MineAnvil",
+      "• Contact support if the problem continues",
+    ].join("\n");
+  }
+
+  // Generic lockfile error
+  return [
+    "Minecraft Installation Configuration Error",
+    "",
+    "An error occurred while loading the installation configuration.",
+    "",
+    "Next steps:",
+    "• Close MineAnvil and try again",
+    "• If the problem continues, delete the configuration file and restart",
+    "  (Location: %APPDATA%\\MineAnvil\\instances\\default\\pack\\lock.json)",
+    "• Contact support if you need help",
+    "",
+    `Technical details: ${error}`,
+  ].join("\n");
+}
+
+/**
+ * Format installation/recovery error messages into parent-readable text with actionable next steps.
+ * This ensures unrecoverable recovery failures show clear, user-visible dialogs.
+ */
+function formatInstallationErrorMessage(error: string): string {
+  const lowerError = error.toLowerCase();
+
+  // Recovery failures: unrecoverable, needs manual intervention
+  if (lowerError.includes("failed to recover from staging") || lowerError.includes("recover from staging")) {
+    return [
+      "Minecraft Installation Could Not Be Recovered",
+      "",
+      "MineAnvil tried to recover the Minecraft installation, but was unable to do so safely.",
+      "",
+      "Next steps:",
+      "• Close MineAnvil and try again",
+      "• If the problem continues, delete the installation folder and reinstall",
+      "  (Location: %APPDATA%\\MineAnvil\\instances\\default\\.minecraft)",
+      "• Contact support if you need help",
+    ].join("\n");
+  }
+
+  // Lockfile corruption: unrecoverable, needs manual intervention
+  if (lowerError.includes("lockfile") && (lowerError.includes("corrupt") || lowerError.includes("invalid"))) {
+    return [
+      "Minecraft Installation Configuration Is Corrupted",
+      "",
+      "The installation configuration file is corrupted and cannot be used.",
+      "",
+      "Next steps:",
+      "• Close MineAnvil",
+      "• Delete the corrupted configuration file",
+      "  (Location: %APPDATA%\\MineAnvil\\instances\\default\\pack\\lock.json)",
+      "• Restart MineAnvil to regenerate the configuration",
+      "• Contact support if the problem continues",
+    ].join("\n");
+  }
+
+  // Download failures: temporary, retryable
+  if (lowerError.includes("download failed") || lowerError.includes("failed to download") || lowerError.includes("network")) {
+    return [
+      "Could Not Download Minecraft Files",
+      "",
+      "MineAnvil could not download required Minecraft files. This may be a network issue.",
+      "",
+      "Next steps:",
+      "• Check your internet connection",
+      "• Try again",
+      "• If the problem continues, check your firewall settings",
+    ].join("\n");
+  }
+
+  // Checksum verification failures: may be recoverable
+  if (lowerError.includes("checksum") || lowerError.includes("verification failed")) {
+    return [
+      "Minecraft File Verification Failed",
+      "",
+      "A downloaded Minecraft file did not match the expected checksum. This may indicate a corrupted download.",
+      "",
+      "Next steps:",
+      "• Try again to download a fresh copy",
+      "• If the problem continues, delete the installation and reinstall",
+      "• Contact support if you need help",
+    ].join("\n");
+  }
+
+  // Promotion failures: unrecoverable, needs manual intervention
+  if (lowerError.includes("failed to promote") || lowerError.includes("promote artifact")) {
+    return [
+      "Minecraft Installation Could Not Be Completed",
+      "",
+      "MineAnvil could not complete the installation. Some files may be in an incomplete state.",
+      "",
+      "Next steps:",
+      "• Close MineAnvil and try again",
+      "• If the problem continues, delete the installation folder and reinstall",
+      "  (Location: %APPDATA%\\MineAnvil\\instances\\default\\.minecraft)",
+      "• Contact support if you need help",
+    ].join("\n");
+  }
+
+  // Installation failures: generic
+  if (lowerError.includes("failed to install") || lowerError.includes("installation failed")) {
+    return [
+      "Minecraft Installation Failed",
+      "",
+      "MineAnvil could not install the required Minecraft files.",
+      "",
+      "Next steps:",
+      "• Try again",
+      "• Check your internet connection",
+      "• Check available disk space",
+      "• Contact support if the problem continues",
+    ].join("\n");
+  }
+
+  // Generic installation error: provide fallback message
+  return [
+    "Minecraft Installation Error",
+    "",
+    "An error occurred during installation.",
+    "",
+    "Next steps:",
+    "• Try again",
+    "• If the problem continues, close MineAnvil and restart it",
+    "• Contact support if you need help",
+    "",
+    `Technical details: ${error}`,
+  ].join("\n");
+}
+
 // Ensure Electron uses a stable app name so `app.getPath("userData")` resolves to
 // a predictable folder on Windows (e.g. %APPDATA%\MineAnvil).
 // Must be set before any `app.getPath(...)` calls.
@@ -280,7 +445,8 @@ app.whenReady().then(async () => {
     const lockfileResult = await loadOrGenerateLockfile(manifest.manifest);
     if (!lockfileResult.ok) {
       const msg = lockfileResult.error;
-      dialog.showErrorBox("MineAnvil — Lockfile Error", msg);
+      const userMessage = formatLockfileErrorMessage(msg);
+      dialog.showErrorBox("MineAnvil — Lockfile Error", userMessage);
       console.error(
         JSON.stringify({
           ts: new Date().toISOString(),
@@ -311,7 +477,8 @@ app.whenReady().then(async () => {
     const installResult = await installFromLockfile(lockfileResult.lockfile);
     if (!installResult.ok) {
       const msg = installResult.error;
-      dialog.showErrorBox("MineAnvil — Installation Error", msg);
+      const userMessage = formatInstallationErrorMessage(msg);
+      dialog.showErrorBox("MineAnvil — Installation Error", userMessage);
       console.error(
         JSON.stringify({
           ts: new Date().toISOString(),

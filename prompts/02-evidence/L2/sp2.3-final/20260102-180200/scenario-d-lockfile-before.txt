@@ -1,0 +1,20 @@
+﻿Path: C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\pack\lock.json
+Size: 1744789 bytes
+Modified: 01/02/2026 15:14:23
+
+First 500 characters:
+{
+  "schemaVersion": "1",
+  "packId": null,
+  "packVersion": null,
+  "minecraftVersion": "1.21.4",
+  "generatedAt": "2026-01-02T13:14:23.298Z",
+  "artifacts": [
+    {
+      "name": "minecraft-version-json-1.21.4",
+      "kind": "version_json",
+      "url": "https://piston-meta.mojang.com/v1/packages/102ae9599f2459acbfffaa0c4a889810643586bf/1.21.4.json",
+      "path": ".minecraft/versions/1.21.4/1.21.4.json",
+      "checksum": {
+        "algo": "sha1",
+        "value": "102ae9599f2459acbfffaa0c4a

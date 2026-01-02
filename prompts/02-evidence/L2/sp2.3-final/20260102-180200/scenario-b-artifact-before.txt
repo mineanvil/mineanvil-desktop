@@ -1,0 +1,5 @@
+﻿Name: library-com-fasterxml-jackson-core-jackson-core-2-13-4
+Path: C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\.minecraft\libraries\com\fasterxml\jackson\core\jackson-core\2.13.4\jackson-core-2.13.4.jar
+Size: 374895 bytes (366.11 KB)
+Modified: 01/02/2026 16:54:43
+Expected checksum: sha1 = 0cf934c681294b97ef6d80082faeefbe1edadf56
