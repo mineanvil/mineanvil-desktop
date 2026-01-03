@@ -1,0 +1,19 @@
+=== Orchestrator Run Information ===
+
+Timestamp: 2026-01-03 18:32:26
+InstanceId: default
+Full Command Line: powershell -ExecutionPolicy Bypass -File scripts/validation/run-sp2.3-rollback-evidence.ps1 -InstanceId default
+
+Build Step:
+  Status: success
+  Exit Code: 0
+
+Snapshot Precheck:
+  Results Path: C:\Users\admin\Development\MineAnvil\mineanvil-desktop\prompts\02-evidence\L2\sp2.3-rollback-execution\20260103-183226\snapshot-precheck.txt
+  Snapshot Created: False
+
+Capture Script:
+  Command Line: powershell -ExecutionPolicy Bypass -File scripts/validation/capture-rollback-evidence.ps1 -InstanceId default -EvidenceDir "C:\Users\admin\Development\MineAnvil\mineanvil-desktop\prompts\02-evidence\L2\sp2.3-rollback-execution\20260103-183226"
+  Exit Code: 0
+
+Final Overall Exit Code: 0

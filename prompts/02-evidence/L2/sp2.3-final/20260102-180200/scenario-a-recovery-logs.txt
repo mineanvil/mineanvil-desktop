@@ -1,4 +1,0 @@
-﻿[2026-01-02T14:54:33.123Z] [warn] corrupted staging artifact removed
-  Meta: {"name":"minecraft-client-1.21.4","path":".minecraft/versions/1.21.4/1.21.4.jar"}
-[2026-01-02T17:26:27.707Z] [warn] corrupted staging artifact removed
-  Meta: {"name":"minecraft-client-1.21.4","path":".minecraft/versions/1.21.4/1.21.4.jar"}

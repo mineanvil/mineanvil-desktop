@@ -1,0 +1,7 @@
+﻿=== Snapshot Precheck ===
+Instance: default
+Rollback directory: C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\.rollback
+
+Found 2 snapshot directory(ies):
+  - .staging (manifest: none)
+  - 1767455661399-1.21.11 (manifest: v1)

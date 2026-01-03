@@ -1,0 +1,135 @@
+# Cursor Prompt — SP2.3 Rollback Evidence Collection (No new features)
+
+You are working in the MineAnvil repo.
+
+CRITICAL:
+- Follow the canonical boot prompt: context/BOOT_PROMPT.md
+- Obey all authoritative context/ files (guardrails, execution map, development plan, etc.)
+- This work is ONLY evidence collection + automation for already-implemented rollback execution.
+- Do NOT add product features. Do NOT touch Layer 3 UI. Do NOT change PackManifest or lock.json behavior.
+- No remote metadata. No network calls.
+- Logs must remain structured and secret-free.
+- Prefer verbose output modes (e.g., -Verbose, --verbose, --debug) everywhere applicable.
+
+GOAL:
+Automate evidence capture for SP2.3 rollback execution so evidence can be produced with a single command on Windows.
+
+DELIVERABLES:
+1) A single top-level Windows script that runs all rollback evidence scenarios and captures artifacts:
+   - scripts/validation/capture-rollback-evidence.ps1
+2) Evidence output folder created deterministically:
+   - prompts/02-evidence/L2/sp2.3-rollback-execution/<timestamp>/
+3) For each scenario, produce a folder:
+   - scenario-01-happy/
+   - scenario-02-no-snapshots/
+   - scenario-03-corrupt-snapshot-manifest/
+   - scenario-04-snapshot-checksum-mismatch/
+   - scenario-05-promote-failure-simulated/
+4) Each scenario folder must contain at minimum:
+   - console.txt                      (full stdout/stderr of commands run)
+   - rollback-log-extract.txt          (filtered log lines proving contract)
+   - pre-hashes.txt                    (SHA256 of lock.json + manifest file before)
+   - post-hashes.txt                   (SHA256 of lock.json + manifest file after)
+   - dir-tree-before.txt               (tree /f of instance root before)
+   - dir-tree-after.txt                (tree /f of instance root after)
+   - quarantine-list.txt               (dir listing of .quarantine, if present)
+   - staging-list.txt                  (dir listing of .staging, if present)
+   - rollback-list.txt                 (dir listing of .rollback, if present)
+   - summary.json                      (machine-readable pass/fail + key paths + exit codes)
+   - summary.md                        (human-readable summary of what happened + expected outcome)
+5) A master summary at run root:
+   - summary.md (table of scenarios with PASS/FAIL and links/paths)
+   - summary.json
+
+ASSUMPTIONS / INPUTS:
+- Script accepts:
+  - -InstanceId <string>   (required)
+  - -SnapshotId <string>   (optional; default latest)
+  - -LogPath <string>      (optional; if omitted, script auto-detects most recent MineAnvil log file)
+  - -Verbose switch
+- Script should NOT require admin rights unless the repo already does.
+- Use existing CLI entrypoint:
+  - node scripts/run-rollback.ts --instance <id> [--snapshot <snapshotId>] --verbose
+- Use existing test helper:
+  - scripts/validation/test-rollback.ps1 (call it, but ALSO do independent evidence capture even if it fails)
+
+IMPLEMENTATION REQUIREMENTS:
+A) Evidence root directory:
+   - Use local time (Africa/Johannesburg is fine) but any consistent timestamp format is acceptable:
+     e.g., yyyyMMdd-HHmmss
+   - Example:
+     prompts/02-evidence/L2/sp2.3-rollback-execution/20260102-213000/
+B) Hash capture:
+   - Identify lock.json at:
+     %APPDATA%\MineAnvil\instances\<instanceId>\pack\lock.json
+   - Identify manifest file (if not present, record "missing" rather than failing the script):
+     try common locations; if unknown, search in instance for "*manifest*.json" under pack and record path used.
+   - Capture SHA256 hashes to pre-hashes.txt and post-hashes.txt
+C) Directory tree capture:
+   - tree "<instanceRoot>" /f
+D) Log extraction:
+   - Auto-detect log file if not provided:
+     - Find most recent file in the known log directory (use the same location documented in SP1.3)
+     - If multiple, pick the latest modified.
+   - Extract rollback events into rollback-log-extract.txt matching:
+     rollback_start
+     rollback_snapshot_selected
+     rollback_verify_ok
+     rollback_verify_failed
+     rollback_promote_start
+     rollback_promote_ok
+     rollback_promote_failed
+     rollback_complete
+   - Also assert (in code) that extracted lines contain:
+     authority="snapshot_manifest"
+     remoteMetadataUsed=false
+     If not found, mark scenario FAIL with explanation (but still capture outputs).
+E) Scenario mechanics:
+   Scenario-01-happy:
+     - Ensure at least one valid snapshot exists:
+       - If none exist, trigger one by running the normal deterministic install path already present in the app, OR call the existing snapshot creation flow (prefer the least invasive method).
+     - Corrupt one live artifact (choose a known file from snapshot manifest, flip a byte).
+     - Run run-rollback.ts --verbose
+     - Expect rollback success, artifact restored, quarantine contains corrupted file.
+   Scenario-02-no-snapshots:
+     - Temporarily move .rollback out of the way to ".rollback__disabled_<timestamp>" (do not delete).
+     - Corrupt a live artifact (or just attempt rollback).
+     - Run run-rollback.ts --verbose
+     - Expect failure "no snapshot exists" with clear next steps.
+     - Restore .rollback after scenario.
+   Scenario-03-corrupt-snapshot-manifest:
+     - Pick latest snapshot directory, corrupt the manifest JSON (truncate file).
+     - Run rollback.
+     - Expect failure before promote; no changes to live state (except quarantine if your rollback quarantines before deciding; if so, document).
+     - Restore manifest from backup after scenario.
+   Scenario-04-snapshot-checksum-mismatch:
+     - Modify a snapshot artifact file so checksum no longer matches manifest.
+     - Run rollback.
+     - Expect failure at verify-in-staging; no promote.
+     - Restore snapshot file after scenario.
+   Scenario-05-promote-failure-simulated:
+     - Simulate promote failure in a deterministic way WITHOUT changing production code:
+       - Preferred: make destination path read-only or open-handle lock a directory/file to cause rename failure.
+       - Example: open a file stream with exclusive lock on the target directory or critical file during promote.
+     - Run rollback.
+     - Expect promote failure, backup restore occurs, clear error shown.
+     - Release lock and verify live state restored.
+F) Safety:
+   - Never delete user data; only move/backup/restore within the instance directories.
+   - Always restore state at end of each scenario, even on failure (try/finally).
+G) Update docs pointer:
+   - Append a short entry to docs/STOP_POINTS.md under SP2.3 evidence notes:
+     - Path to the generated evidence folder
+     - Command used to generate it
+   - Do NOT change checkbox statuses (already done).
+
+OUTPUT:
+- Provide the final command the developer should run, e.g.:
+  powershell -ExecutionPolicy Bypass -File scripts/validation/capture-rollback-evidence.ps1 -InstanceId <id> -Verbose
+- Ensure the script exits non-zero if any scenario fails, but still generates evidence for all scenarios.
+
+START:
+1) Inspect current repo for log location utilities + existing test scripts.
+2) Implement capture-rollback-evidence.ps1 with robust error handling and verbose mode.
+3) Run it locally (as far as feasible) or at least ensure it is syntactically valid and prints clear instructions.
+4) Update docs/STOP_POINTS.md with the evidence generation command and example output path.

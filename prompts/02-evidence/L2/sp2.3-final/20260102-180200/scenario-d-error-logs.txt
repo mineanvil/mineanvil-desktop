@@ -1,8 +1,0 @@
-﻿[2026-01-02T12:54:23.998Z] [error] deterministic installation failed: Runtime installation failed: Managed runtime is not configured yet (placeholder download URL / checksum). This is a MineAnvil build-time configuration issue.
-[2026-01-02T14:54:33.122Z] [error] artifact checksum mismatch
-  Meta: {"name":"minecraft-client-1.21.4","expected":"a7e5a6024bfd3cd614625aa05629adf760020304","actual":"61b04a1b024ede778bd23d3f0c2aaa131a2eed0a"}
-[2026-01-02T17:26:27.705Z] [error] artifact checksum mismatch
-  Meta: {"name":"minecraft-client-1.21.4","expected":"a7e5a6024bfd3cd614625aa05629adf760020304","actual":"0451f12cd5ef640071a09382b5e83ecbed110aa8"}
-[2026-01-02T17:35:59.196Z] [error] artifact checksum mismatch
-  Meta: {"name":"library-com-fasterxml-jackson-core-jackson-core-2-13-4","expected":"0cf934c681294b97ef6d80082faeefbe1edadf56","actual":"95224ca83f10294cdeafdd5efe9d045445856967"}
-[2026-01-02T17:53:03.165Z] [error] lockfile operation failed: Lockfile operation failed: Lockfile exists but is invalid or corrupt: Unexpected token 'ï»¿', "ï»¿{corrupte"... is not valid JSON

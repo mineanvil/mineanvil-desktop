@@ -1,8 +1,0 @@
-﻿[2026-01-02T14:54:33.122Z] [error] artifact checksum mismatch
-  Meta: {"name":"minecraft-client-1.21.4","expected":"a7e5a6024bfd3cd614625aa05629adf760020304","actual":"61b04a1b024ede778bd23d3f0c2aaa131a2eed0a"}
-[2026-01-02T14:54:33.123Z] [warn] corrupted staging artifact removed
-  Meta: {"name":"minecraft-client-1.21.4","path":".minecraft/versions/1.21.4/1.21.4.jar"}
-[2026-01-02T17:26:27.705Z] [error] artifact checksum mismatch
-  Meta: {"name":"minecraft-client-1.21.4","expected":"a7e5a6024bfd3cd614625aa05629adf760020304","actual":"0451f12cd5ef640071a09382b5e83ecbed110aa8"}
-[2026-01-02T17:26:27.707Z] [warn] corrupted staging artifact removed
-  Meta: {"name":"minecraft-client-1.21.4","path":".minecraft/versions/1.21.4/1.21.4.jar"}

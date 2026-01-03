@@ -1,4 +1,0 @@
-﻿[2026-01-02T14:54:43.043Z] [info] downloading artifact to staging
-  Meta: {"name":"library-com-fasterxml-jackson-core-jackson-core-2-13-4","kind":"library","size":374895}
-[2026-01-02T17:35:59.219Z] [info] downloading artifact to staging
-  Meta: {"name":"library-com-fasterxml-jackson-core-jackson-core-2-13-4","kind":"library","size":374895}

@@ -1,5 +1,0 @@
-﻿Name: library-com-fasterxml-jackson-core-jackson-core-2-13-4
-Path: C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\.minecraft\libraries\com\fasterxml\jackson\core\jackson-core\2.13.4\jackson-core-2.13.4.jar
-Size: 374939 bytes (366.15 KB)
-Modified: 01/02/2026 19:35:29
-Status: CORRUPTED (corruption bytes added)

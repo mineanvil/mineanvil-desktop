@@ -1,0 +1,32 @@
+﻿{
+    "cleanupError":  null,
+    "scenario":  "Happy Path",
+    "logMetadata":  {
+                        "hasRemoteMetadata":  true,
+                        "hasAuthority":  true,
+                        "skipped":  false,
+                        "pass":  true
+                    },
+    "setupError":  null,
+    "passed":  true,
+    "lockfileChanged":  false,
+    "artifact":  {
+                     "size":  31152600,
+                     "snapshotId":  "1767455661399-1.21.11",
+                     "originalHash":  "1473C9489AC50FDA3C435049A76A70D61A10B8610DB27F5BA9D8756B686CD3BD",
+                     "corruptedHash":  "A5A4E6D32B31A5691B257A0FAAB140A458AD5234107C7178C544324D2E00B6DA",
+                     "name":  "1.21.11.jar",
+                     "source":  "client_jar_candidate",
+                     "path":  "C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\.minecraft\\versions\\1.21.11\\1.21.11.jar",
+                     "restoredHash":  "1473C9489AC50FDA3C435049A76A70D61A10B8610DB27F5BA9D8756B686CD3BD"
+                 },
+    "manifestChanged":  false,
+    "exitCode":  0,
+    "artifactRestored":  true,
+    "paths":  {
+                  "scenarioLogFile":  "C:\\Users\\admin\\Development\\MineAnvil\\mineanvil-desktop\\prompts\\02-evidence\\L2\\sp2.3-rollback-execution\\20260103-183226\\scenario-01-happy\\rollback.ndjson",
+                  "logFile":  "C:\\Users\\admin\\Development\\MineAnvil\\mineanvil-desktop\\prompts\\02-evidence\\L2\\sp2.3-rollback-execution\\20260103-183226\\scenario-01-happy\\rollback.ndjson",
+                  "manifest":  "C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\pack\\manifest.json",
+                  "lockfile":  "C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\pack\\lock.json"
+              }
+}

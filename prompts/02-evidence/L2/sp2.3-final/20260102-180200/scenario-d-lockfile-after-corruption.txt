@@ -1,7 +1,0 @@
-﻿Path: C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\pack\lock.json
-Size: 40 bytes
-Modified: 01/02/2026 19:49:14
-
-Corrupted content:
-{corrupted: true, invalid: "lockfile"}
-

@@ -1,0 +1,88 @@
+# Cursor Prompt — SP2.3: Produce Final Passing Rollback Evidence (One Command)
+
+You are in the MineAnvil repo on Windows.
+
+CRITICAL:
+- Follow context/BOOT_PROMPT.md and all authoritative context/ files.
+- Do NOT add new features.
+- Do NOT change PackManifest or lock.json behavior.
+- Do NOT do Layer 3 UI work.
+- No remote metadata. No network calls.
+- Use verbose output everywhere possible.
+
+GOAL:
+Generate a fully passing SP2.3 rollback execution evidence run:
+prompts/02-evidence/L2/sp2.3-rollback-execution/<timestamp>/
+with all 5 scenarios executed and PASS, and evidence files captured.
+
+CURRENT STATE:
+- scripts/validation/capture-rollback-evidence.ps1 exists and correctly captures evidence.
+- However, prerequisites are required:
+  1) electron code compiled (npm run build:electron)
+  2) at least one snapshot exists for the target instance
+
+TASKS (DO THESE IN ORDER, NO EXTRA WORK):
+1) Add a single “orchestrator” PowerShell script that does prerequisites + evidence run:
+   - scripts/validation/run-sp2.3-rollback-evidence.ps1
+
+2) The orchestrator must:
+   A) Verify node/npm present.
+   B) Run build with verbose logging captured:
+      - npm run build:electron (capture output)
+   C) Ensure an instance exists and has at least one snapshot:
+      - If snapshot already exists: continue.
+      - If no snapshot exists, create one using existing app flows ONLY.
+        Prefer deterministic install path that already creates snapshots after successful install.
+        Use an existing CLI/test script if one already exists.
+        If there is no existing script to force install/snapshot creation, add the smallest possible script:
+          scripts/create-snapshot-for-instance.ts (or .ps1)
+        that runs the existing “install then snapshot” pathway (do not re-implement install logic).
+      D) Run the evidence collector:
+      - powershell -ExecutionPolicy Bypass -File scripts/validation/capture-rollback-evidence.ps1 -InstanceId <id> -Verbose
+   E) After run completes, print:
+      - Evidence folder path
+      - Overall PASS/FAIL
+      - A short pointer to top-level summary.md
+
+3) Inputs:
+   - run-sp2.3-rollback-evidence.ps1 must accept:
+     -InstanceId <string> (default "default")
+     -Verbose
+   - It must pass InstanceId through to capture-rollback-evidence.ps1.
+
+4) Output and evidence requirements:
+   - Save build logs inside the evidence folder at the top level:
+     - build-electron-console.txt
+   - Save snapshot precheck output at top level:
+     - snapshot-precheck.txt (lists snapshot dirs found)
+   - If snapshot creation was needed, save:
+     - snapshot-create-console.txt
+   - The final evidence folder must still follow the established structure.
+
+5) Robustness:
+   - If build fails, stop and exit non-zero, but still write build logs to a timestamped folder under:
+     prompts/02-evidence/L2/sp2.3-rollback-execution/<timestamp>/build-failed/
+   - If snapshot creation fails, stop and exit non-zero, but still write logs to:
+     .../<timestamp>/snapshot-create-failed/
+   - If evidence script fails any scenario, exit non-zero but keep evidence.
+
+6) Documentation update:
+   - Update docs/STOP_POINTS.md:
+     - Add the command to run the orchestrator script
+     - Add an example of the evidence output path format
+   - Do NOT change checkbox states.
+
+IMPLEMENTATION NOTES:
+- To check for snapshots, look at:
+  %APPDATA%\MineAnvil\instances\<instanceId>\.rollback\
+  A snapshot exists if there is at least one child directory containing a snapshot manifest.
+- Reuse existing code that creates snapshots; do not duplicate snapshot logic.
+- Keep changes minimal: new orchestrator script + (only if necessary) a minimal “create snapshot” runner that invokes existing install/snapshot pipeline.
+
+RUN IT:
+After implementing, run:
+powershell -ExecutionPolicy Bypass -File scripts/validation/run-sp2.3-rollback-evidence.ps1 -InstanceId default -Verbose
+
+Confirm the output prints the evidence folder path and that summary.md shows all scenarios PASS.
+
+Start now.

@@ -1,2 +1,0 @@
-﻿[2026-01-02T12:54:23.998Z] deterministic installation failed: Runtime installation failed: Managed runtime is not configured yet (placeholder download URL / checksum). This is a MineAnvil build-time configuration issue.
-[2026-01-02T17:53:03.165Z] lockfile operation failed: Lockfile operation failed: Lockfile exists but is invalid or corrupt: Unexpected token 'ï»¿', "ï»¿{corrupte"... is not valid JSON

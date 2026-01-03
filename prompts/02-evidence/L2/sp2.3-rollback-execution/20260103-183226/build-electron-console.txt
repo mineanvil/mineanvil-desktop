@@ -1,0 +1,11 @@
+﻿=== Build Electron Code ===
+Started: 2026-01-03 18:32:27
+Command: npm run build:electron
+
+
+> work@0.0.0 build:electron
+> tsc -p tsconfig.electron.json && node -e "const fs=require('fs'); fs.mkdirSync('electron/dist',{recursive:true}); fs.copyFileSync('electron/src/dist-package.json','electron/dist/package.json');"
+
+
+Ended: 2026-01-03 18:32:30
+Exit code: 0

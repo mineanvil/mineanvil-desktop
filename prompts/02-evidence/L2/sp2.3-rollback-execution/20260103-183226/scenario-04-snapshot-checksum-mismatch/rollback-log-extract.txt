@@ -1,0 +1,1 @@
+﻿{"ts":"2026-01-03T16:33:17.112Z","level":"info","area":"install.rollback","message":"rollback_start","meta":{"instanceId":"default","snapshotId":"latest","meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}

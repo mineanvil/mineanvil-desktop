@@ -1,0 +1,5 @@
+﻿{
+    "manifestPath":  "C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\pack\\manifest.json",
+    "manifest":  "09675D002E03067AF10E2ABDE35ED6FA497BAB9A38B8F54E580E512D06773BCF",
+    "lockfile":  "63A1F96624C4F80B7351299414F35D4CF92A28F7B5CD51D79ED41BA5C6DF2F2C"
+}

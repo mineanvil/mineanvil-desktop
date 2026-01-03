@@ -1,0 +1,19 @@
+﻿Starting rollback execution...
+Instance: default
+Snapshot: latest (will be selected automatically)
+
+{"ts":"2026-01-03T16:33:11.898Z","level":"info","area":"install.rollback","message":"rollback_start","meta":{"instanceId":"default","snapshotId":"latest","meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+node : Γ¥î Rollback failed: No snapshots found. Rollback directory does not exist.
+At C:\Users\admin\Development\MineAnvil\mineanvil-desktop\scripts\validation\capture-rollback-evidence.ps1:1164 char:13
++             node scripts\run-rollback.ts --instance $InstanceId --ver ...
++             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Γ¥î Rollback fa...does not exist.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+Next steps:
+  ΓÇó Check that snapshots exist: node scripts/validation/list-snapshots.ts
+  ΓÇó Verify snapshot manifest is valid
+  ΓÇó Check logs for detailed error information
+  ΓÇó Try selecting a specific snapshot with --snapshot <id>
+

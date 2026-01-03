@@ -1,0 +1,45 @@
+﻿{
+    "logFile":  "C:\\Users\\admin\\AppData\\Roaming\\MineAnvil\\instances\\default\\logs\\mineanvil-main.log",
+    "scenarios":  [
+                      {
+                          "summaryPath":  "scenario-01-*\\summary.json",
+                          "exitCode":  0,
+                          "name":  "Happy Path",
+                          "passed":  true
+                      },
+                      {
+                          "summaryPath":  "scenario-02-*\\summary.json",
+                          "exitCode":  1,
+                          "name":  "No Snapshots",
+                          "passed":  true
+                      },
+                      {
+                          "summaryPath":  "scenario-03-*\\summary.json",
+                          "exitCode":  1,
+                          "name":  "Corrupt Snapshot Manifest",
+                          "passed":  true
+                      },
+                      {
+                          "summaryPath":  "scenario-04-*\\summary.json",
+                          "exitCode":  1,
+                          "name":  "Snapshot Checksum Mismatch",
+                          "passed":  true
+                      },
+                      {
+                          "summaryPath":  "scenario-05-*\\summary.json",
+                          "exitCode":  1,
+                          "name":  "Promote Failure Simulated",
+                          "passed":  true
+                      }
+                  ],
+    "timestamp":  "20260103-183226",
+    "instanceId":  "default",
+    "evidenceRoot":  "C:\\Users\\admin\\Development\\MineAnvil\\mineanvil-desktop\\prompts\\02-evidence\\L2\\sp2.3-rollback-execution\\20260103-183226",
+    "summary":  {
+                    "allPassed":  true,
+                    "failed":  0,
+                    "total":  5,
+                    "passed":  5
+                },
+    "snapshotId":  "latest"
+}

@@ -1,0 +1,31 @@
+﻿Scenario: Happy Path
+Started: 2026-01-03 18:32:30
+
+Starting rollback execution...
+Instance: default
+Snapshot: 1767455661399-1.21.11
+
+{"ts":"2026-01-03T16:32:32.058Z","level":"info","area":"install.rollback","message":"rollback_start","meta":{"instanceId":"default","snapshotId":"1767455661399-1.21.11","meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+{"ts":"2026-01-03T16:32:32.069Z","level":"info","area":"install.rollback","message":"rollback_snapshot_selected","meta":{"snapshotId":"1767455661399-1.21.11","artifactCount":4663,"meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+{"ts":"2026-01-03T16:32:32.078Z","level":"info","area":"install.rollback","message":"rollback_snapshot_selected","meta":{"snapshotId":"1767455661399-1.21.11","artifactCount":4663,"meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+{"ts":"2026-01-03T16:32:32.079Z","level":"info","area":"install.rollback","message":"rollback_verify_start","meta":{"snapshotId":"1767455661399-1.21.11","artifactCount":4663,"meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+{"ts":"2026-01-03T16:32:49.710Z","level":"info","area":"install.rollback","message":"rollback_verify_ok","meta":{"snapshotId":"1767455661399-1.21.11","verifiedCount":4663,"meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+node : {"ts":"2026-01-03T16:32:49.772Z","level":"warn","area":"install.rollback","message":"artifact quarantined before rollback","meta":{"name":
+"minecraft-client-1.21.11","originalPath":".minecraft/versions/1.21.11/1.21.11.jar","quarantinePath":"C:\\Users\\admin\\AppData\\Roaming\\MineAnv
+il\\instances\\default\\.quarantine\\2026-01-03T16-32-49-771Z-minecraft-client-1.21.11"}}
+At C:\Users\admin\Development\MineAnvil\mineanvil-desktop\scripts\validation\capture-rollback-evidence.ps1:1109 char:13
++             node scripts\run-rollback.ts --instance $InstanceId --sna ...
++             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ({"ts":"2026-01-...ient-1.21.11"}}:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+{"ts":"2026-01-03T16:32:54.712Z","level":"info","area":"install.rollback","message":"rollback_promote_start","meta":{"snapshotId":"1767455661399-1.21.11","artifactCount":4663,"meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+{"ts":"2026-01-03T16:33:08.332Z","level":"info","area":"install.rollback","message":"rollback_promote_ok","meta":{"snapshotId":"1767455661399-1.21.11","promotedCount":4663,"meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+{"ts":"2026-01-03T16:33:08.333Z","level":"info","area":"install.rollback","message":"rollback_complete","meta":{"snapshotId":"1767455661399-1.21.11","restoredCount":4663,"meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+Γ£à Rollback completed successfully
+   Snapshot: 1767455661399-1.21.11
+   Restored artifacts: 4663
+
+
+Ended: 2026-01-03 18:33:11
+Exit code: 0

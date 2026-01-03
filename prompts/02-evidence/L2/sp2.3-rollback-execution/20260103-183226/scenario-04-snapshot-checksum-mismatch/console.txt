@@ -1,0 +1,25 @@
+﻿Scenario: Snapshot Checksum Mismatch
+Started: 2026-01-03 18:33:16
+
+Starting rollback execution...
+Instance: default
+Snapshot: latest (will be selected automatically)
+
+{"ts":"2026-01-03T16:33:17.112Z","level":"info","area":"install.rollback","message":"rollback_start","meta":{"instanceId":"default","snapshotId":"latest","meta":{"authority":"snapshot_manifest","remoteMetadataUsed":false}}}
+node : Γ¥î Rollback failed: Latest snapshot 1767455661399-1.21.11 is missing manifest file.
+At C:\Users\admin\Development\MineAnvil\mineanvil-desktop\scripts\validation\capture-rollback-evidence.ps1:1272 char:13
++             node scripts\run-rollback.ts --instance $InstanceId --ver ...
++             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Γ¥î Rollback fa... manifest file.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+Next steps:
+  ΓÇó Check that snapshots exist: node scripts/validation/list-snapshots.ts
+  ΓÇó Verify snapshot manifest is valid
+  ΓÇó Check logs for detailed error information
+  ΓÇó Try selecting a specific snapshot with --snapshot <id>
+
+
+Ended: 2026-01-03 18:33:19
+Exit code: 1

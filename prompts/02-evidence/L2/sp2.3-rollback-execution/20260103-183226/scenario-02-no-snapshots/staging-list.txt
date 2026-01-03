@@ -1,0 +1,7 @@
+﻿
+FullName                                                                                  Length LastWriteTime      
+--------                                                                                  ------ -------------      
+C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\.staging\pack-install                 2026/01/03 18:33:08
+C:\Users\admin\AppData\Roaming\MineAnvil\instances\default\.staging\pack-install\rollback        2026/01/03 18:33:08
+
+

@@ -1,0 +1,127 @@
+# Cursor Prompt — SP2.3: Implement Rollback Execution (Enable Snapshots)
+
+You are working in the MineAnvil repo.
+
+CRITICAL:
+- Follow the canonical boot prompt: context/BOOT_PROMPT.md
+- All behavior must comply with the authoritative context files in context/ (guardrails, execution map, development plan, etc.)
+- Advance exactly one stop point: SP2.3 “Snapshots enable rollback capability”
+- Do NOT do any Layer 3 UI work.
+- Do NOT mutate PackManifest.
+- Do NOT rewrite or regenerate lock.json.
+- All actions must be based on lockfile-only authority (no remote metadata).
+- All logs must remain structured and secret-free.
+- Where possible provide verbose diagnostics via flags like --verbose / --debug.
+
+GOAL:
+Implement rollback execution so we can tick:
+- [done] Snapshots enable rollback capability
+
+DEFINITION OF DONE:
+1) There is an executable rollback path that can restore a last-known-good snapshot.
+2) Rollback is atomic (no half-rolled-back live state).
+3) Rollback verifies restored artifacts against snapshot manifest (checksums) and/or lockfile checksums.
+4) Rollback never uses remote metadata, never changes manifest/lockfile.
+5) Rollback produces clear, user-visible failure messages with next steps if it cannot complete.
+6) Add documentation + evidence instructions.
+7) Add tests (unit/integration) and a runnable script to exercise rollback in a controlled way.
+
+SCOPE (implement minimal but real rollback):
+- Only rollback of lockfile-declared artifacts (pack install outputs)
+- Source of truth for what to restore is the snapshot manifest created in SP2.3
+- Snapshot selection: “latest snapshot” by default, plus allow choosing a specific snapshot id via CLI/script parameter
+- Rollback trigger: automatically when installer detects unrecoverable corruption OR via explicit CLI/script command
+  - Prefer explicit command first, then integrate automatic trigger only if already supported by the current architecture.
+
+ARCHITECTURE REQUIREMENTS:
+1) Snapshot format:
+   - Confirm existing snapshot directory layout in paths util:
+     %APPDATA%\MineAnvil\instances\<instanceId>\.rollback\<timestamp>-<version>\
+   - Confirm presence of snapshot manifest file (names, paths, checksums).
+   - If snapshot manifest schema is missing fields needed for rollback, extend it in a backward compatible way.
+   - The snapshot manifest must include:
+     - snapshotId (dir name)
+     - createdAt
+     - minecraftVersion
+     - authority="lockfile"
+     - artifacts: [{ logicalName, relativePath, checksum: { algo, value }, size }]
+2) Rollback algorithm (must be safe and atomic):
+   - Create a rollback staging area:
+     %APPDATA%\MineAnvil\instances\<instanceId>\.staging\rollback\<snapshotId>\
+   - Rebuild the “final state” inside rollback staging first:
+     - Copy artifacts from snapshot dir into staging at their intended final relative paths
+     - Verify checksums in staging against snapshot manifest (and/or lockfile if aligned)
+   - Atomic promote:
+     - Promote from rollback staging to live pack directories using rename/move operations
+     - Ensure we never partially replace only some files while others are old
+     - Strategy suggestion:
+       a) Move current live pack dir to a temporary backup dir under .staging (timestamped)
+       b) Move staged rollback pack dir into place
+       c) If promote succeeds, delete temp backup
+       d) If promote fails, restore temp backup and fail loudly
+   - After promote, verify live state again (spot-check or full check) and log results.
+3) Quarantine:
+   - Any corrupted live artifacts detected leading to rollback should be quarantined, not deleted, consistent with existing behavior.
+4) Errors:
+   - If no snapshot exists: fail with clear message and next steps
+   - If snapshot manifest corrupt/missing: fail loud, do NOT proceed
+   - If any checksum mismatch in snapshot contents: fail loud, do NOT promote
+   - If atomic promote fails: restore previous state (best effort) and fail loud
+5) Logging:
+   - Add structured logs for rollback decisions:
+     - event: rollback_start, rollback_snapshot_selected, rollback_verify_ok/failed, rollback_promote_start/ok/failed, rollback_complete
+     - meta.authority="snapshot_manifest" (and optionally "lockfile" if verifying against lock too)
+     - meta.remoteMetadataUsed=false
+     - include expected vs observed checksum prefixes in logs (prefix only)
+6) UX:
+   - No new UI screens.
+   - Use existing error dialog mechanism on fatal rollback failure.
+   - Message must be parent-readable and include next steps (e.g., “Try again”, “Send logs”, “Reinstall pack”, etc.)
+7) Integration:
+   - Add a rollback executor module, e.g.:
+     electron/src/main/install/rollbackExecutor.ts
+   - Wire it into deterministicInstaller / installPlanner where appropriate:
+     - Only activate rollback when corruption is detected AND recovery cannot fix it
+     - Do not change success path behavior
+8) CLI / Script:
+   - Add a script:
+     scripts/run-rollback.ts
+     Usage:
+       node scripts/run-rollback.ts --instance <id> [--snapshot <snapshotId>] --verbose
+   - Script should print clear steps, exit non-zero on failure.
+9) Tests:
+   - Unit tests for:
+     - snapshot manifest parsing/validation
+     - checksum verification
+     - path safety: ensure no writes outside controlled dirs
+   - Integration-ish test (can be filesystem-based):
+     - Create fake instance structure under a temp dir
+     - Create “live” pack with corrupted artifact
+     - Create snapshot with good artifact + manifest
+     - Run rollback executor
+     - Assert live artifact restored and checksum matches
+     - Assert corrupted file quarantined or preserved according to policy
+
+DELIVERABLES:
+1) Code changes implementing rollback execution with atomic promote.
+2) Updated docs:
+   - docs/SP2.3-rollback-recovery.md: add “Rollback Execution” section (contract + how it works)
+   - docs/SP2.3-rollback-verification.md (new): step-by-step verification + expected logs
+3) Evidence capture guide:
+   - prompts/02-evidence/L2/sp2.3-final/<timestamp>/scenario-rollback-*
+   - Include logs grep snippets proving:
+     - rollback selected snapshot
+     - verify in staging
+     - atomic promote
+     - no manifest/lockfile mutation
+4) Update Stop Points file checkbox:
+   - Set “[done] Snapshots enable rollback capability” only when tests + evidence are in place.
+
+PROCESS:
+- First, inspect existing code related to snapshots, staging, quarantine, paths, installer decision points.
+- Then propose a minimal patch plan (files to add/change).
+- Then implement with tight, reviewable commits.
+- Run tests and include command output with verbose flags.
+- Update docs and produce evidence instructions.
+
+Start now.
