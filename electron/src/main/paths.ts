@@ -22,6 +22,10 @@ import * as path from "node:path";
 export const DEFAULT_INSTANCE_ID = "default" as const;
 
 export function baseDataDir(): string {
+  // Support standalone execution (for scripts/run-rollback.ts)
+  if ((global as any).__ELECTRON_APP_MOCK__) {
+    return (global as any).__ELECTRON_APP_MOCK__.getPath("userData");
+  }
   return app.getPath("userData");
 }
 

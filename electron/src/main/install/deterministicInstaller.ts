@@ -32,6 +32,7 @@ import { planInstallation } from "./installPlanner";
 import { instanceRoot, minecraftDir, stagingDir, rollbackDir, quarantineDir } from "../paths";
 import { downloadToFile, sha1File } from "../net/downloader";
 import { createLogger, isVerboseEnabled, type LogEntry, type Logger } from "../../shared/logging";
+import type { SnapshotManifestV1, SnapshotManifestArtifact } from "./snapshotManifest";
 
 function createConsoleSink(): (entry: LogEntry) => void {
   return (entry) => {
@@ -174,49 +175,315 @@ async function quarantineFile(filePath: string, artifact: PackLockfileArtifact, 
 }
 
 /**
- * Create a last-known-good snapshot of validated artifacts.
+ * Create a last-known-good snapshot of ALL artifacts from lockfile.
+ * Copies artifact files to snapshot directory under files\ subdirectory and creates manifest.
+ * Snapshot creation is atomic: writes to staging directory, then renames to final location.
+ * Fails if any source file is missing (no partial snapshots).
+ * 
+ * Snapshot structure:
+ *   <snapshotDir>\
+ *     snapshot.v1.json    (manifest)
+ *     files\              (artifact files)
+ *       <relativePath>    (relative to files\ root)
  */
 async function createLastKnownGoodSnapshot(
   lockfile: PackLockfileV1,
-  validatedArtifacts: PackLockfileArtifact[],
   instanceId: string,
 ): Promise<{ ok: true; snapshotId: string } | { ok: false; error: string }> {
   const logger = getLogger();
   const rollback = rollbackDir(instanceId);
   const snapshotId = `${Date.now()}-${lockfile.minecraftVersion}`;
-  const snapshotDir = path.join(rollback, snapshotId);
+  const finalSnapshotDir = path.join(rollback, snapshotId);
+  const stagingSnapshotDir = path.join(rollback, ".staging", snapshotId);
+
+  // Use ALL artifacts from lockfile, not just validatedArtifacts
+  const allArtifacts = lockfile.artifacts.filter((a) => a.kind !== "runtime");
+
+  logger.info("snapshot_copy_start", {
+    instanceId,
+    snapshotId,
+    artifactCount: allArtifacts.length,
+    meta: {
+      authority: "lockfile",
+      remoteMetadataUsed: false,
+    },
+  });
 
   try {
-    await ensureDir(snapshotDir);
+    // Create staging directory
+    await ensureDir(stagingSnapshotDir);
+    const filesDir = path.join(stagingSnapshotDir, "files");
+    await ensureDir(filesDir);
 
-    // Write a manifest of what's in this snapshot
-    const snapshotManifest = {
+    // Copy artifacts to staging snapshot directory and build manifest
+    const artifacts: SnapshotManifestArtifact[] = [];
+    let copiedCount = 0;
+    const missingArtifacts: Array<{ logicalName: string; relativePath: string }> = [];
+
+    for (const artifact of allArtifacts) {
+      const finalPath = resolveFinalPath(artifact, instanceId);
+      
+      // Check if file exists - FAIL if missing (no partial snapshots)
+      try {
+        await fs.access(finalPath);
+      } catch {
+        missingArtifacts.push({
+          logicalName: artifact.name,
+          relativePath: artifact.path,
+        });
+        logger.error("snapshot_copy_missing", {
+          instanceId,
+          snapshotId,
+          logicalName: artifact.name,
+          relativePath: artifact.path,
+          expectedChecksumPrefix: hashPrefix(artifact.checksum.value),
+          meta: {
+            authority: "lockfile",
+            remoteMetadataUsed: false,
+          },
+        });
+        continue; // Collect all missing artifacts before failing
+      }
+
+      // Get file size before copy
+      const stats = await fs.stat(finalPath);
+      const expectedSize = artifact.size;
+      const actualSize = stats.size;
+
+      // Copy artifact to staging snapshot directory under files\ subdirectory
+      // relativePath in manifest is relative to files\ root (matches artifact.path from lockfile)
+      const snapshotArtifactPath = path.join(filesDir, artifact.path);
+      await ensureDir(path.dirname(snapshotArtifactPath));
+      
+      try {
+        await fs.copyFile(finalPath, snapshotArtifactPath);
+        
+        // Verify size matches expected (when provided)
+        if (expectedSize !== undefined && actualSize !== expectedSize) {
+          logger.error("snapshot_copy_failed", {
+            instanceId,
+            snapshotId,
+            logicalName: artifact.name,
+            relativePath: artifact.path,
+            reason: "size_mismatch",
+            expectedSize,
+            observedSize: actualSize,
+            expectedChecksumPrefix: hashPrefix(artifact.checksum.value),
+            meta: {
+              authority: "lockfile",
+              remoteMetadataUsed: false,
+            },
+          });
+          // Cleanup staging directory and fail
+          await fs.rm(path.dirname(stagingSnapshotDir), { recursive: true, force: true });
+          return {
+            ok: false,
+            error: `Snapshot creation failed: size mismatch for artifact ${artifact.name} at ${artifact.path}. Expected ${expectedSize}, got ${actualSize}.`,
+          };
+        }
+        
+        // Verify checksum of copied file matches expected
+        const verifyResult = await verifyArtifactChecksum(snapshotArtifactPath, artifact);
+        if (!verifyResult.ok) {
+          const observed = await formatObservedMetadata(snapshotArtifactPath, artifact).catch(() => ({
+            algo: artifact.checksum.algo,
+            hashPrefix: "unknown",
+            size: actualSize,
+          }));
+          logger.error("snapshot_copy_failed", {
+            instanceId,
+            snapshotId,
+            logicalName: artifact.name,
+            relativePath: artifact.path,
+            reason: "checksum_mismatch_after_copy",
+            expectedChecksumPrefix: hashPrefix(artifact.checksum.value),
+            observedChecksumPrefix: observed.hashPrefix,
+            error: verifyResult.error,
+            meta: {
+              authority: "lockfile",
+              remoteMetadataUsed: false,
+            },
+          });
+          // Cleanup staging directory and fail
+          await fs.rm(path.dirname(stagingSnapshotDir), { recursive: true, force: true });
+          return {
+            ok: false,
+            error: `Snapshot creation failed: checksum mismatch after copying artifact ${artifact.name}: ${verifyResult.error}`,
+          };
+        }
+        
+        copiedCount++;
+        const observed = await formatObservedMetadata(snapshotArtifactPath, artifact);
+        logger.debug("snapshot_copy_ok", {
+          instanceId,
+          snapshotId,
+          logicalName: artifact.name,
+          relativePath: artifact.path,
+          expectedChecksumPrefix: hashPrefix(artifact.checksum.value),
+          observedChecksumPrefix: observed.hashPrefix,
+          size: actualSize,
+          meta: {
+            authority: "lockfile",
+            remoteMetadataUsed: false,
+          },
+        });
+      } catch (copyError) {
+        const errorMsg = copyError instanceof Error ? copyError.message : String(copyError);
+        logger.error("snapshot_copy_failed", {
+          instanceId,
+          snapshotId,
+          logicalName: artifact.name,
+          relativePath: artifact.path,
+          reason: "copy_failed",
+          expectedChecksumPrefix: hashPrefix(artifact.checksum.value),
+          error: errorMsg,
+          meta: {
+            authority: "lockfile",
+            remoteMetadataUsed: false,
+          },
+        });
+        // Cleanup staging directory and fail
+        await fs.rm(path.dirname(stagingSnapshotDir), { recursive: true, force: true });
+        return {
+          ok: false,
+          error: `Snapshot creation failed: failed to copy artifact ${artifact.name} at ${artifact.path}: ${errorMsg}`,
+        };
+      }
+
+      artifacts.push({
+        logicalName: artifact.name,
+        relativePath: artifact.path, // relative to files\ root
+        checksum: {
+          algo: artifact.checksum.algo,
+          value: artifact.checksum.value,
+        },
+        size: actualSize,
+      });
+    }
+
+    // Completeness check: all artifacts must be copied
+    if (missingArtifacts.length > 0) {
+      const firstN = missingArtifacts.slice(0, 10);
+      const missingList = firstN.map((a) => `${a.logicalName} (${a.relativePath})`).join(", ");
+      const moreText = missingArtifacts.length > 10 ? ` and ${missingArtifacts.length - 10} more` : "";
+      logger.error("snapshot_copy_failed", {
+        instanceId,
+        snapshotId,
+        reason: "incomplete_snapshot",
+        missingCount: missingArtifacts.length,
+        totalExpected: allArtifacts.length,
+        meta: {
+          authority: "lockfile",
+          remoteMetadataUsed: false,
+        },
+      });
+      // Cleanup staging directory and fail
+      await fs.rm(path.dirname(stagingSnapshotDir), { recursive: true, force: true });
+      return {
+        ok: false,
+        error: `Snapshot creation failed: ${missingArtifacts.length} artifact(s) missing. First missing: ${missingList}${moreText}. All artifacts must exist for snapshot creation.`,
+      };
+    }
+
+    if (copiedCount !== allArtifacts.length) {
+      logger.error("snapshot_copy_failed", {
+        instanceId,
+        snapshotId,
+        reason: "count_mismatch",
+        copiedCount,
+        expectedCount: allArtifacts.length,
+        meta: {
+          authority: "lockfile",
+          remoteMetadataUsed: false,
+        },
+      });
+      // Cleanup staging directory and fail
+      await fs.rm(path.dirname(stagingSnapshotDir), { recursive: true, force: true });
+      return {
+        ok: false,
+        error: `Snapshot creation failed: copied ${copiedCount} artifacts but expected ${allArtifacts.length}.`,
+      };
+    }
+
+    // Write manifest (v1 format) to staging directory with atomic write
+    const snapshotManifest: SnapshotManifestV1 = {
+      version: 1,
       snapshotId,
       createdAt: new Date().toISOString(),
       minecraftVersion: lockfile.minecraftVersion,
-      artifactCount: validatedArtifacts.length,
-      artifacts: validatedArtifacts.map((a) => ({
-        name: a.name,
-        path: a.path,
-        checksum: a.checksum,
-      })),
+      authority: "lockfile",
+      artifactCount: artifacts.length,
+      artifacts,
     };
 
-    await fs.writeFile(
-      path.join(snapshotDir, "snapshot.json"),
-      JSON.stringify(snapshotManifest, null, 2),
-      { encoding: "utf8" },
-    );
+    const manifestPath = path.join(stagingSnapshotDir, "snapshot.v1.json");
+    const manifestContent = JSON.stringify(snapshotManifest, null, 2);
+    // Atomic write: write to temp file, then rename
+    const tempManifestPath = `${manifestPath}.tmp`;
+    await fs.writeFile(tempManifestPath, manifestContent, { encoding: "utf8" });
+    await fs.rename(tempManifestPath, manifestPath);
 
-    logger.info("last-known-good snapshot created", {
+    // Atomically rename staging directory to final snapshot directory
+    try {
+      await fs.rename(stagingSnapshotDir, finalSnapshotDir);
+      logger.info("snapshot_promote_ok", {
+        instanceId,
+        snapshotId,
+        artifactCount: artifacts.length,
+        copiedCount,
+        meta: {
+          authority: "lockfile",
+          remoteMetadataUsed: false,
+        },
+      });
+    } catch (renameError) {
+      // Cleanup staging directory on rename failure
+      await fs.rm(path.dirname(stagingSnapshotDir), { recursive: true, force: true });
+      const errorMsg = renameError instanceof Error ? renameError.message : String(renameError);
+      logger.error("snapshot_create_failed", {
+        instanceId,
+        snapshotId,
+        reason: "rename_failed",
+        error: errorMsg,
+        meta: {
+          authority: "lockfile",
+          remoteMetadataUsed: false,
+        },
+      });
+      return {
+        ok: false,
+        error: `Snapshot creation failed: failed to rename staging directory: ${errorMsg}`,
+      };
+    }
+
+    logger.info("snapshot_create_complete", {
+      instanceId,
       snapshotId,
-      artifactCount: validatedArtifacts.length,
+      artifactCount: artifacts.length,
+      copiedCount,
+      meta: {
+        authority: "lockfile",
+        remoteMetadataUsed: false,
+      },
     });
 
     return { ok: true, snapshotId };
   } catch (e) {
+    // Cleanup staging directory on any error
+    await fs.rm(path.dirname(stagingSnapshotDir), { recursive: true, force: true }).catch(() => {
+      // Ignore cleanup errors
+    });
     const msg = e instanceof Error ? e.message : String(e);
-    logger.error("failed to create snapshot", { error: msg });
+    logger.error("snapshot_create_failed", {
+      instanceId,
+      snapshotId,
+      reason: "unexpected_error",
+      error: msg,
+      meta: {
+        authority: "lockfile",
+        remoteMetadataUsed: false,
+      },
+    });
     return { ok: false, error: `Failed to create snapshot: ${msg}` };
   }
 }
@@ -822,9 +1089,9 @@ export async function installFromLockfile(
     validatedArtifacts.push(artifact);
   }
 
-  // Create last-known-good snapshot of all validated artifacts
-  if (validatedArtifacts.length > 0) {
-    const snapshotResult = await createLastKnownGoodSnapshot(lockfile, validatedArtifacts, instanceId);
+  // Create last-known-good snapshot of all artifacts from lockfile
+  if (lockfile.artifacts.length > 0) {
+    const snapshotResult = await createLastKnownGoodSnapshot(lockfile, instanceId);
     if (!snapshotResult.ok) {
       logger.warn("failed to create snapshot, continuing anyway", {
         error: snapshotResult.error,

@@ -26,6 +26,8 @@ import { DEFAULT_RUNTIME_MANIFEST, getManagedRuntimeStatus } from "./runtime/man
 import { ensureDefaultInstance } from "./instances/instances";
 import { ensureVanillaInstalled } from "./minecraft/install";
 import { buildVanillaLaunchCommand, launchVanilla } from "./minecraft/launch";
+import { updateManifestWithMinecraftVersion } from "./pack/packManifestLoader";
+import { loadOrGenerateLockfile } from "./pack/packLockfileLoader";
 import { formatJsonLine, isVerboseEnabled, redactSecrets, type LogEntry } from "../shared/logging";
 import { getMsClientId } from "./config";
 import { logsDir as getLogsDir } from "./paths";
@@ -827,6 +829,7 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.installVanilla, async (_evt, version: string) => {
+    const instanceId = "default";
     try {
       // Hard gate: must own Minecraft: Java Edition.
       try {
@@ -839,6 +842,92 @@ export function registerIpcHandlers(): void {
 
       const instance = await ensureDefaultInstance();
       const res = await ensureVanillaInstalled(instance.path, version);
+      
+      // After installation succeeds, update manifest with pinned version and generate lockfile
+      // The versionId is already pinned (not "latest") by ensureVanillaInstalled
+      const pinnedVersionId = res.versionId;
+
+      // Update manifest with pinned version
+      const manifestUpdateResult = await updateManifestWithMinecraftVersion(pinnedVersionId, instanceId);
+      if (!manifestUpdateResult.ok) {
+        const msg = manifestUpdateResult.error;
+        console.error(
+          formatJsonLine({
+            ts: new Date().toISOString(),
+            level: "error",
+            area: "install.vanilla",
+            message: "manifest update failed",
+            meta: {
+              instanceId,
+              versionId: pinnedVersionId,
+              error: msg,
+            },
+          }),
+        );
+        dialog.showErrorBox(
+          "MineAnvil — Installation Error",
+          `Failed to update installation configuration: ${msg}`,
+        );
+        return { ok: false, error: msg, failure: launchFailureFromError(new Error(msg)) } as const;
+      }
+
+      // Generate lockfile
+      console.info(
+        formatJsonLine({
+          ts: new Date().toISOString(),
+          level: "info",
+          area: "install.vanilla",
+          message: "lockfile_generate_start",
+          meta: {
+            instanceId,
+            versionId: pinnedVersionId,
+            authority: "remote_metadata_for_generation",
+            remoteMetadataUsed: true,
+          },
+        }),
+      );
+
+      const lockfileResult = await loadOrGenerateLockfile(manifestUpdateResult.manifest, instanceId);
+      if (!lockfileResult.ok) {
+        const msg = lockfileResult.error;
+        console.error(
+          formatJsonLine({
+            ts: new Date().toISOString(),
+            level: "error",
+            area: "install.vanilla",
+            message: "lockfile_generate_failed",
+            meta: {
+              instanceId,
+              versionId: pinnedVersionId,
+              authority: "remote_metadata_for_generation",
+              remoteMetadataUsed: true,
+              error: msg,
+            },
+          }),
+        );
+        dialog.showErrorBox(
+          "MineAnvil — Installation Error",
+          `Failed to generate installation lockfile: ${msg}\n\nThis is required for deterministic installation. Please try again.`,
+        );
+        return { ok: false, error: msg, failure: launchFailureFromError(new Error(msg)) } as const;
+      }
+
+      console.info(
+        formatJsonLine({
+          ts: new Date().toISOString(),
+          level: "info",
+          area: "install.vanilla",
+          message: "lockfile_generate_ok",
+          meta: {
+            instanceId,
+            versionId: pinnedVersionId,
+            authority: "remote_metadata_for_generation",
+            remoteMetadataUsed: true,
+            artifactCount: lockfileResult.lockfile.artifacts.length,
+          },
+        }),
+      );
+
       return { ok: true, versionId: res.versionId, notes: res.notes } as const;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

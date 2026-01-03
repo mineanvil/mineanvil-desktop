@@ -139,3 +139,62 @@ export async function loadOrCreatePackManifest(
   }
 }
 
+export type UpdateManifestResult =
+  | { ok: true; manifest: PackManifestV1 }
+  | { ok: false; error: string };
+
+/**
+ * Update the manifest with a pinned Minecraft version.
+ *
+ * Behavior:
+ * - Loads existing manifest (or creates if missing)
+ * - Updates minecraftVersion to the pinned versionId (never "latest")
+ * - Writes manifest atomically
+ * - Returns updated manifest
+ *
+ * This function ensures the manifest contains a concrete versionId, not "latest".
+ */
+export async function updateManifestWithMinecraftVersion(
+  versionId: string,
+  instanceId: string = DEFAULT_INSTANCE_ID,
+): Promise<UpdateManifestResult> {
+  if (versionId === "latest") {
+    return {
+      ok: false,
+      error: "Cannot update manifest with 'latest' - must provide a pinned versionId",
+    };
+  }
+
+  const manifestPath = packManifestPath(instanceId);
+
+  try {
+    // Load or create manifest
+    const loadResult = await loadOrCreatePackManifest(instanceId);
+    if (!loadResult.ok) {
+      return loadResult;
+    }
+
+    const manifest = loadResult.manifest;
+
+    // If version is already set and matches, no update needed
+    if (manifest.minecraftVersion === versionId) {
+      return { ok: true, manifest };
+    }
+
+    // Update manifest with pinned version
+    const updated: PackManifestV1 = {
+      ...manifest,
+      minecraftVersion: versionId,
+    };
+
+    await writeManifestAtomic(manifestPath, updated);
+    return { ok: true, manifest: updated };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      error: `Failed to update manifest: ${msg}`,
+    };
+  }
+}
+
