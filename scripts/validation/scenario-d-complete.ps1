@@ -92,3 +92,4 @@ powershell -File scripts\validation\scenario-d-assert.ps1 -InstanceId $InstanceI
 Write-Host ""
 Write-Host "=== Scenario D Complete ===" -ForegroundColor Green
 
+
