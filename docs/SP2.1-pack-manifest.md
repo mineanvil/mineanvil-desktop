@@ -157,3 +157,4 @@ The manifest structure reserves fields for future use:
 - Docker-based dev environment is assumed for tooling/scripts
 
 
+

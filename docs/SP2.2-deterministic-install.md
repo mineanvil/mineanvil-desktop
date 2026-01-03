@@ -77,6 +77,20 @@ The deterministic installer is called automatically at startup:
 3. Install from lockfile
 4. If installation fails, startup is aborted with a clear error dialog
 
+**File**: `electron/src/main/ipc.ts`
+
+The "Install Vanilla (Windows)" UI action automatically generates the lockfile:
+
+1. User clicks "Install Vanilla (Windows)" with a version (e.g., "latest")
+2. `ensureVanillaInstalled()` resolves "latest" to a pinned versionId and installs Minecraft files
+3. Manifest is updated with the pinned versionId (never "latest")
+4. Lockfile is generated deterministically from the pinned version
+5. Lockfile is written atomically to `pack/lock.json`
+6. Structured logging events are emitted: `lockfile_generate_start`, `lockfile_generate_ok`, or `lockfile_generate_failed`
+7. If lockfile generation fails, a clear error dialog is shown to the user
+
+**Note**: The UI install flow ensures that after a successful "Install Vanilla" action, the lockfile is always present and authoritative. The installer remains idempotent on rerun.
+
 ## Behavior
 
 ### Successful Installation
@@ -214,10 +228,13 @@ Expected behavior: Clear, parent-readable error; no silent repair; no rollback.
 
 - `electron/src/main/pack/packLockfile.ts` — Lockfile structure and type definitions
 - `electron/src/main/pack/packLockfileLoader.ts` — Lockfile loader and generator
+- `electron/src/main/pack/packManifestLoader.ts` — Added `updateManifestWithMinecraftVersion()` function
 - `electron/src/main/install/installPlanner.ts` — Updated to use lockfile
 - `electron/src/main/install/deterministicInstaller.ts` — Updated to install all artefacts from lockfile
 - `electron/src/main/main.ts` — Integrated lockfile loading and installation
+- `electron/src/main/ipc.ts` — Updated `installVanilla` handler to update manifest and generate lockfile
 - `scripts/print-pack-lockfile.ts` — Helper script to print lockfile
+- `scripts/generate-pack-lockfile.ts` — CLI helper to generate lockfile for evidence runs
 - `docs/SP2.2-deterministic-install.md` — This file
 
 ## Notes

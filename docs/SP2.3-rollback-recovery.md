@@ -35,11 +35,27 @@ After verification in staging, artifacts are atomically promoted to final locati
 Snapshots are created after successful installation:
 
 - Contains a manifest (`snapshot.json`) listing all validated artifacts
-- Includes artifact names, paths, and checksums
+- Includes artifact names, paths, checksums, and sizes
+- Contains actual artifact files copied from final locations
 - Timestamped and versioned for identification
-- Used for rollback if recovery fails
+- Used for rollback execution to restore last-known-good state
 
-**Note**: Snapshots are metadata-only. Actual artifact files remain in their final locations. Rollback would restore from lockfile using snapshot metadata.
+**Snapshot Manifest Structure**:
+- `snapshotId`: Directory name (timestamp-version)
+- `createdAt`: ISO timestamp
+- `minecraftVersion`: Minecraft version
+- `authority`: Always "lockfile"
+- `artifactCount`: Number of artifacts
+- `artifacts`: Array of artifact entries with:
+  - `logicalName`: Artifact identifier
+  - `relativePath`: Relative path from instance root
+  - `checksum`: { algo, value }
+  - `size`: File size in bytes
+
+**Snapshot Artifact Storage**:
+- Artifact files are copied to snapshot directory, preserving relative path structure
+- Artifacts are stored at: `<snapshotDir>/<relativePath>`
+- Example: `.minecraft/versions/1.21.4/1.21.4.jar` is stored at `<snapshotDir>/.minecraft/versions/1.21.4/1.21.4.jar`
 
 ### Quarantine
 
@@ -175,8 +191,59 @@ No writes occur outside these controlled directories.
 Recovery behavior is deterministic:
 
 - **Resume**: If staging artifact is valid, resume from staging
-- **Rollback**: If recovery fails, rollback to last-known-good (future enhancement)
+- **Rollback**: If recovery fails, rollback to last-known-good snapshot
 - **Fail Clearly**: If recovery is impossible, fail with clear next steps
+
+### Rollback Execution
+
+**Location**: `electron/src/main/install/rollbackExecutor.ts`
+
+Rollback execution enables restoring artifacts from last-known-good snapshots:
+
+1. **Snapshot Selection**: 
+   - Default: Latest snapshot (by timestamp)
+   - Optional: Specific snapshot ID via CLI parameter
+   - Validates snapshot manifest exists and is valid
+
+2. **Rollback Process**:
+   - Loads snapshot manifest and validates structure
+   - Copies artifacts from snapshot directory to rollback staging area
+   - Verifies checksums in staging against snapshot manifest
+   - Quarantines corrupted live artifacts before rollback
+   - Atomically promotes artifacts from rollback staging to live locations
+   - Verifies final artifacts after promotion
+
+3. **Atomic Promote Strategy**:
+   - Creates temporary backup of current live state
+   - Promotes artifacts from rollback staging to final locations
+   - If promote fails, restores from backup and aborts
+   - If promote succeeds, deletes backup and cleans up staging
+
+4. **Error Handling**:
+   - If no snapshot exists: fails with clear message
+   - If snapshot manifest corrupt/missing: fails loud, does NOT proceed
+   - If checksum mismatch in snapshot: fails loud, does NOT promote
+   - If atomic promote fails: restores previous state (best effort) and fails loud
+
+5. **Logging**:
+   - Structured logs for all rollback decisions:
+     - `rollback_start`: Rollback initiated
+     - `rollback_snapshot_selected`: Snapshot selected and validated
+     - `rollback_verify_start/ok/failed`: Verification phase
+     - `rollback_promote_start/ok/failed`: Promotion phase
+     - `rollback_complete`: Rollback completed successfully
+   - All logs include `meta.authority="snapshot_manifest"` and `meta.remoteMetadataUsed=false`
+   - Includes expected vs observed checksum prefixes in logs (prefix only)
+
+6. **CLI Script**:
+   - `scripts/run-rollback.ts`: Executable rollback script
+   - Usage: `node scripts/run-rollback.ts --instance <id> [--snapshot <snapshotId>] [--verbose]`
+   - Prints clear steps, exits non-zero on failure
+
+7. **Integration**:
+   - Rollback executor is standalone module
+   - Can be called explicitly via CLI script
+   - Can be integrated into installer for automatic rollback on unrecoverable corruption (future enhancement)
 
 ### Lockfile-only Authority
 

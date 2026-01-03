@@ -242,9 +242,9 @@ MineAnvil can safely recover from partial or corrupt installs of lockfile-declar
 
 ### Last-Known-Good Snapshots
 - [done] Last-known-good snapshot exists for validated artifacts (`%APPDATA%\MineAnvil\instances\<instanceId>\.rollback\<timestamp>-<version>\`)
-- [done] Snapshot contains manifest of validated artifacts (names, paths, checksums)
+- [done] Snapshot contains manifest of validated artifacts (names, paths, checksums, sizes, authority)
 - [done] Snapshots are created after successful installation
-- [ ] Snapshots enable rollback capability (future enhancement)
+- [done] Snapshots enable rollback capability
 
 ### Quarantine
 - [done] Corrupted files are quarantined instead of deleted (`%APPDATA%\MineAnvil\instances\<instanceId>\.quarantine\`)
@@ -277,6 +277,13 @@ Evidence / notes:
 - [done] Staging directory utilities added to `electron/src/main/paths.ts`
 - [done] Install planner updated in `electron/src/main/install/installPlanner.ts` to detect staging artifacts
 - [done] Deterministic installer updated in `electron/src/main/install/deterministicInstaller.ts` with staging, atomic promote, recovery, quarantine, snapshots
+- [done] Rollback executor implemented in `electron/src/main/install/rollbackExecutor.ts` with atomic rollback logic
+- [done] Rollback CLI script created: `scripts/run-rollback.ts`
+- [done] Rollback test script created: `scripts/validation/test-rollback.ps1`
+- [done] Rollback verification documentation: `docs/SP2.3-rollback-verification.md`
+- [done] Rollback evidence guide: `prompts/02-evidence/L2/sp2.3-rollback-execution/ROLLBACK-EVIDENCE-GUIDE.md`
+- [done] Rollback evidence collection script: `scripts/validation/capture-rollback-evidence.ps1` (usage: `powershell -ExecutionPolicy Bypass -File scripts/validation/capture-rollback-evidence.ps1 -InstanceId <id> [-SnapshotId <id>] [-ShowVerbose]`)
+- [done] Rollback evidence orchestrator script: `scripts/validation/run-sp2.3-rollback-evidence.ps1` (usage: `powershell -ExecutionPolicy Bypass -File scripts/validation/run-sp2.3-rollback-evidence.ps1 -InstanceId <id> [-ShowVerbose]` - handles prerequisites: verifies node/npm, builds electron code, ensures snapshot exists, then runs evidence collection. Evidence output: `prompts/02-evidence/L2/sp2.3-rollback-execution/<timestamp>/` with build logs, snapshot precheck, and all scenario evidence)
 - [done] B2 validation evidence: `prompts/02-evidence/L2/sp2.3-b2/20260102-174043/` (proves staging-first writes, verify-in-staging, atomic promote, staging cleanup, resume from valid staging, recovery logging, manifest/lockfile immutability)
 - [done] Snapshot validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/` (proves snapshot creation, snapshot manifest presence with names/paths/checksums)
 - [done] Scenario A validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-a-*` (proves corrupted staging artifacts are detected, removed, and re-downloaded - corruption detected in 8 log entries, staging removed in 4 log entries, final jar restored to correct size 27.02 MB)
@@ -284,6 +291,25 @@ Evidence / notes:
 - [done] Scenario D validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-180200/scenario-d-*` (proves failure-path UX - error detected in 8 log entries, error visible to user via dialog, error message is clear and actionable with next steps, app exits safely without mutating manifest or lockfile)
 - [done] Lockfile-only authority: All recovery decision logs include structured metadata with `meta.authority = "lockfile"` and `meta.remoteMetadataUsed = false`. All checksum verification uses `artifact.checksum.value` from lockfile. All decision points (resume_from_staging, redownload, quarantine_then_redownload, promote, skip) log expected values from lockfile and observed values from local filesystem. Runtime evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-205008/` (proves 2 recovery decision log entries, all with `authority: "lockfile"` and `remoteMetadataUsed: false`, all include expected values from lockfile and observed values from filesystem - decision type: `quarantine_then_redownload` when corrupted file detected). See `docs/SP2.3-rollback-recovery.md` "Lockfile-only Authority" section for log structure and verification instructions.
 - [done] Lockfile-only authority validation evidence: `prompts/02-evidence/L2/sp2.3-final/20260102-205008/` (proves authority="lockfile" and remoteMetadataUsed=false in recovery decision logs)
+
+**Current Status**: ✅ **SP2.3 is COMPLETE**.
+
+SP2.3 closed on 2026-01-03.
+All rollback scenarios validated with full evidence.
+5 scenarios executed, 5 PASS, 0 FAIL.
+Happy-path rollback restores corrupted client JAR by hash match.
+Negative scenarios fail safely (expected), with no lockfile or manifest mutation.
+Evidence stored at:
+prompts/02-evidence/L2/sp2.3-rollback-execution/20260103-182731
+
+Evidence command used:
+scripts/validation/run-sp2.3-rollback-evidence.ps1 -InstanceId default -Verbose
+
+Evidence folder:
+prompts/02-evidence/L2/sp2.3-rollback-execution/20260103-182731
+
+Summary file:
+summary.md
 
 ---
 

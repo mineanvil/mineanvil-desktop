@@ -60,3 +60,4 @@ This document summarizes the error message mapping implemented for Stop Point 1.
 - `electron/src/shared/ipc-types.ts` - `FailureInfo` type definition
 
 
+
