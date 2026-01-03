@@ -175,6 +175,110 @@ async function quarantineFile(filePath: string, artifact: PackLockfileArtifact, 
 }
 
 /**
+ * Check if a snapshot exists for the given minecraftVersion.
+ */
+async function snapshotExistsForVersion(
+  minecraftVersion: string,
+  instanceId: string,
+): Promise<boolean> {
+  const rollback = rollbackDir(instanceId);
+  
+  try {
+    await fs.access(rollback);
+  } catch {
+    return false; // Rollback directory doesn't exist
+  }
+
+  try {
+    const entries = await fs.readdir(rollback, { withFileTypes: true });
+    const snapshotDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+
+    // Check each snapshot directory for a manifest with matching minecraftVersion
+    for (const snapshotDirName of snapshotDirs) {
+      // Skip staging directory
+      if (snapshotDirName === ".staging") {
+        continue;
+      }
+
+      const manifestPath = path.join(rollback, snapshotDirName, "snapshot.v1.json");
+      try {
+        const manifestContent = await fs.readFile(manifestPath, "utf8");
+        const manifest = JSON.parse(manifestContent);
+        if (manifest.minecraftVersion === minecraftVersion) {
+          return true;
+        }
+      } catch {
+        // Try legacy manifest format
+        const legacyManifestPath = path.join(rollback, snapshotDirName, "snapshot.json");
+        try {
+          const manifestContent = await fs.readFile(legacyManifestPath, "utf8");
+          const manifest = JSON.parse(manifestContent);
+          if (manifest.minecraftVersion === minecraftVersion) {
+            return true;
+          }
+        } catch {
+          // Skip invalid snapshots
+          continue;
+        }
+      }
+    }
+  } catch {
+    // Error reading directory - assume no snapshot exists
+  }
+
+  return false;
+}
+
+/**
+ * Determine if a snapshot should be created based on installation state.
+ */
+async function shouldCreateSnapshot(
+  lockfile: PackLockfileV1,
+  instanceId: string,
+  stagedCount: number,
+  quarantinedCount: number,
+): Promise<{ decision: "create" | "skip"; reason: string }> {
+  // Check explicit env flag
+  if (process.env.MINEANVIL_SNAPSHOT_ALWAYS === "1") {
+    return {
+      decision: "create",
+      reason: "MINEANVIL_SNAPSHOT_ALWAYS=1 flag set",
+    };
+  }
+
+  // Check if artifacts were installed/promoted
+  if (stagedCount > 0) {
+    return {
+      decision: "create",
+      reason: `artifacts were installed/promoted (stagedCount=${stagedCount})`,
+    };
+  }
+
+  // Check if verification repaired something
+  if (quarantinedCount > 0) {
+    return {
+      decision: "create",
+      reason: `verification repaired corrupted artifacts (quarantinedCount=${quarantinedCount})`,
+    };
+  }
+
+  // Check if snapshot exists for this minecraftVersion
+  const snapshotExists = await snapshotExistsForVersion(lockfile.minecraftVersion, instanceId);
+  if (!snapshotExists) {
+    return {
+      decision: "create",
+      reason: `no snapshot exists for minecraftVersion=${lockfile.minecraftVersion}`,
+    };
+  }
+
+  // All conditions met for skipping
+  return {
+    decision: "skip",
+    reason: `no changes detected (stagedCount=0, quarantinedCount=0) and snapshot exists for minecraftVersion=${lockfile.minecraftVersion}`,
+  };
+}
+
+/**
  * Create a last-known-good snapshot of ALL artifacts from lockfile.
  * Copies artifact files to snapshot directory under files\ subdirectory and creates manifest.
  * Snapshot creation is atomic: writes to staging directory, then renames to final location.
@@ -1089,8 +1193,32 @@ export async function installFromLockfile(
     validatedArtifacts.push(artifact);
   }
 
-  // Create last-known-good snapshot of all artifacts from lockfile
-  if (lockfile.artifacts.length > 0) {
+  // Determine if snapshot should be created
+  const stagedCount = stagedArtifacts.length;
+  const needsInstallCount = plan.artifacts.filter((p) => p.needsInstall).length;
+  const needsVerificationCount = plan.artifacts.filter((p) => p.needsVerification).length;
+
+  const snapshotDecision = await shouldCreateSnapshot(
+    lockfile,
+    instanceId,
+    stagedCount,
+    quarantinedCount,
+  );
+
+  // Log snapshot policy decision
+  logger.info("snapshot_policy_decision", {
+    instanceId,
+    meta: {
+      decision: snapshotDecision.decision,
+      reason: snapshotDecision.reason,
+      stagedCount,
+      needsInstall: needsInstallCount,
+      needsVerification: needsVerificationCount,
+    },
+  });
+
+  // Create last-known-good snapshot of all artifacts from lockfile (if needed)
+  if (lockfile.artifacts.length > 0 && snapshotDecision.decision === "create") {
     const snapshotResult = await createLastKnownGoodSnapshot(lockfile, instanceId);
     if (!snapshotResult.ok) {
       logger.warn("failed to create snapshot, continuing anyway", {
