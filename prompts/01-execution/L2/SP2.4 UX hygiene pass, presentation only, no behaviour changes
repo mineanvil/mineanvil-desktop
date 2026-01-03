@@ -1,0 +1,74 @@
+Cursor Task Brief — MineAnvil UX Hygiene Pass (SP2.4)
+
+Context
+
+MineAnvil is an Electron desktop app that has completed:
+
+Layer 1 (Ownership & Launch Control)
+
+Layer 2 (Deterministic Install, Rollback & Recovery)
+
+All core behaviour is complete and validated.
+This task is presentation-only.
+
+Objective
+
+Refactor the existing UI so that it feels like:
+
+A calm, finished desktop app
+
+Safe and trustworthy for parents
+
+Simple and non-threatening for children
+
+The UI must no longer resemble a Vite/React starter template.
+
+Hard Constraints (Non-Negotiable)
+
+❌ Do not add or remove any behaviour
+
+❌ Do not change control flow
+
+❌ Do not introduce new state
+
+❌ Do not auto-retry, auto-fix, or hide failures
+
+❌ Do not introduce invite codes, Play flow, or Layer 3 concepts
+
+This is UX hygiene only.
+
+Allowed Changes
+
+Replace framework branding with MineAnvil branding
+
+Improve layout, spacing, typography, and hierarchy
+
+Rewrite user-facing copy into plain English
+
+Introduce clear visual “status cards”
+
+Move technical fields (UUIDs, timestamps, flags) behind Diagnostics
+
+Make Diagnostics explicitly opt-in
+
+Improve loading and waiting presentation (cosmetic only)
+
+UX Principles to Follow
+
+Nothing should look breakable
+
+Default view must be understandable by a non-technical parent
+
+Child should see one clear, calm state
+
+Errors must remain visible, honest, and readable
+
+Deliverables
+
+Updated UI components (React)
+
+Updated copy strings
+
+Before/after screenshots
+
+Confirmation that no logic files were modified
