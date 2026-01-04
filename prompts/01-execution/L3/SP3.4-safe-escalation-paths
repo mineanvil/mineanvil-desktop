@@ -1,0 +1,109 @@
+You are Cursor working in the MineAnvil repo.
+
+GOAL
+Implement Stop Point 3.4 — Safe Escalation Paths.
+
+You MUST follow these constraints:
+- Only advance SP3.4. Do not advance any other stop point.
+- Use the canonical boot prompt + authoritative context files:
+  - Read and obey: context/BOOT_PROMPT.md
+  - Then read: context/guardrails.md, context/execution-map.md, context/development-plan.md (or whatever exists in context/)
+- No backend changes, no IPC changes, no new state sources.
+- Do not change existing safety signal mapping logic (SP3.2).
+- Do not change behaviour or control-flow. UI copy only.
+- Read-only UI. No new buttons/actions. Reuse existing UI only.
+- No technical jargon. Calm, parent-safe tone.
+- Escalation content must be visible ONLY when safety signal != "normal".
+- Escalation content must be collapsed by default (optional).
+- Max 3 short paragraphs per state: What happened / What it means / What to do next.
+
+CONTEXT
+We already have SP3.2 safety signals implemented:
+- Safety signals: "normal" | "attention" | "unsupported"
+- Central mapping function exists in: src/safety/safetySignal.ts
+- App passes inputs to mapping function (signedIn, ownershipState, minecraftReady derived from existing state).
+- Environment Status card is on Home page and shows the safety signal.
+
+TASKS (Do in order)
+
+1) Locate the Environment Status card component/markup in the renderer (likely src/App.tsx).
+   - Identify how the current “What does this mean?”/explanation toggle is implemented (SP3.3).
+   - We will reuse the same toggle pattern for SP3.4 escalation text.
+
+2) Create a pure, centralized escalation copy module:
+   - New file: src/safety/escalationCopy.ts
+   - Export a function:
+     getEscalationCopy(signal: SafetySignal, inputs: SafetySignalInputs): {
+       heading: string;          // optional, but keep simple if used
+       whatHappened: string;
+       whatItMeans: string;
+       whatNext: string;
+     } | null
+   - Return null when signal === "normal".
+   - Inputs type should reuse the existing SafetySignalInputs type used by SP3.2.
+     - If SafetySignalInputs is not currently exported, refactor minimally to export it without altering logic.
+   - Do not introduce new state; only use the inputs already provided to safetySignal mapping.
+
+3) Implement escalation copy per the approved design:
+
+ATTENTION — signed out
+Trigger: inputs.signedIn === false
+Copy:
+- What happened: "You’re currently signed out of your Microsoft account."
+- What it means: "MineAnvil can’t check ownership or prepare Minecraft until you’re signed in."
+- What to do next: "Sign in when you’re ready, and MineAnvil will take care of the rest."
+
+ATTENTION — temporarily unverified OR owned but not ready
+Trigger: inputs.signedIn === true AND signal === "attention" AND inputs.ownershipState !== "NOT_OWNED"
+(This includes ownershipState "UNVERIFIED_TEMPORARY" or "UNVERIFIED_APP_NOT_APPROVED" or minecraftReady false while OWNED.)
+Copy:
+- What happened: "MineAnvil is still confirming access or preparing Minecraft."
+- What it means: "This is usually temporary and doesn’t mean anything is wrong."
+- What to do next: "You can wait a moment or try again later. If it doesn’t resolve, support can help."
+
+UNSUPPORTED — not owned OR app not approved (per SP3.2 mapping)
+Trigger: signal === "unsupported"
+Copy:
+- What happened: "This account can’t be used with MineAnvil."
+- What it means: "Minecraft ownership couldn’t be confirmed for this account."
+- What to do next: "Try a different Microsoft account that owns Minecraft, or contact support for help."
+
+IMPORTANT: Do NOT mention Mojang, APIs, approvals, tokens, lockfiles, or technical details.
+
+4) Render escalation content in the Environment Status card:
+   - Show the escalation toggle ONLY when getEscalationCopy(...) returns non-null.
+   - Collapsed by default.
+   - Reuse the existing SP3.3 “What does this mean?” style/pattern.
+   - Display the 3 paragraphs with small labels:
+     - "What happened"
+     - "What it means"
+     - "What to do next"
+   - Keep it subtle (no new alert colours, no icons, no flashing).
+
+5) Styling (minimal):
+   - If needed, add small CSS in src/App.css:
+     - A subtle container background and spacing
+     - Labels slightly muted
+   - Do not change existing theme or layout.
+   - No new global CSS patterns. Keep it local and minimal.
+
+6) Add a tiny unit-test-like sanity check (only if the repo already has a test harness in place).
+   - If no tests exist, skip tests and instead add a small developer note as comment in escalationCopy.ts explaining the triggers.
+
+7) Update stop points file:
+   - Edit the Stop Points Checklist to mark SP3.4 as [done].
+   - Add short evidence/notes under SP3.4: “Escalation copy appears only for non-normal signals; collapsed by default; no new actions; no backend/IPC changes.”
+   - Do not edit any other section.
+
+8) Provide a completion summary:
+   - List files changed
+   - Confirm constraints met (no behaviour changes, no new actions, no backend calls)
+   - Mention how to manually verify each state (normal/attention/unsupported) in the UI.
+
+VERBOSE REQUIREMENT
+When you run any scripts/commands, use verbose flags where available (for example: --verbose, -vv, etc.) and paste the relevant output.
+
+STOP CONDITIONS
+If any step would require backend/IPC changes or new state sources, STOP and explain why (briefly), then propose a UI-only alternative consistent with SP3.4.
+
+Now implement SP3.4 exactly as described.
