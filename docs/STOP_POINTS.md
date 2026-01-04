@@ -478,13 +478,43 @@ SP3.3 does NOT include:
 
 ### Acceptance Criteria
 SP3.3 is complete ONLY when:
-- Explanations are optional (collapsed by default)
-- All explanations are parent-safe (plain language, no technical jargon)
-- No behaviour or signal logic changes
-- No new actions introduced
-- Explanations attached to existing status or signal surfaces only
-- Maximum two sentences per explanation
-- Reassurance-focused tone throughout
+- [done] Explanations are optional (collapsed by default)
+- [done] All explanations are parent-safe (plain language, no technical jargon)
+- [done] No behaviour or signal logic changes
+- [done] No new actions introduced
+- [done] Explanations attached to existing status or signal surfaces only
+- [done] Maximum two sentences per explanation
+- [done] Reassurance-focused tone throughout
+
+### Validation Checklist
+- [done] Explanations are collapsed by default
+- [done] Toggle works and does not change any app behaviour
+- [done] SafetySignal logic is unchanged
+- [done] No new actions or guidance introduced
+- [done] No technical jargon introduced
+- [done] Copy is exactly as provided
+- [done] Only applied to the Home Environment Status card (one surface only)
+- [done] Button is properly semantic with type="button"
+- [done] ARIA attributes properly wired (aria-expanded, aria-controls)
+- [done] Keyboard accessible (Tab → Enter toggles)
+- [done] Subtle help link styling (no underline by default, underline on hover)
+- [done] Chevron indicator shows expand/collapse state
+- [done] Panel styled as calm, unobtrusive note
+
+Evidence / notes:
+- [done] Optional "What does this mean?" disclosure added to Home → Environment Status card
+- [done] Explanations provided for all three SafetySignal states (normal, attention, unsupported)
+- [done] Explanations use exact copy provided: plain-language, two sentences max, reassurance-focused
+- [done] Disclosure is collapsed by default, toggleable via subtle help link
+- [done] Chevron indicator (▾/▴) shows expand/collapse state
+- [done] No backend calls, IPC changes, or SafetySignal mapping logic changes
+- [done] No actions, buttons, or guidance text introduced
+- [done] Implementation in `src/App.tsx` and `src/App.css`
+- [done] Fully keyboard accessible with proper ARIA attributes
+
+**Current Status**: ✅ **SP3.3 is COMPLETE**.
+
+SP3.3 completed on 2026-01-03. Optional, collapsed-by-default explanations added to Environment Status card with subtle help link disclosure pattern.
 
 ---
 
@@ -513,10 +543,10 @@ Layer 3 does NOT include:
 Layer 3 is complete ONLY when:
 - [done] Stop Point 3.1 is fully complete
 - [done] Stop Point 3.2 is fully complete
-- [ ] Stop Point 3.3 is fully complete
+- [done] Stop Point 3.3 is fully complete
 - [ ] Stop Point 3.4 is fully complete
 
-**Current Status**: 🔓 **Layer 3 is in progress**. SP3.1 and SP3.2 complete. SP3.3 and SP3.4 remain.
+**Current Status**: 🔓 **Layer 3 is in progress**. SP3.1, SP3.2, and SP3.3 complete. SP3.4 remains.
 
 ---
 
