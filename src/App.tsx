@@ -155,7 +155,7 @@ function App() {
                   aria-expanded={escalationExpanded}
                   aria-controls="safety-signal-escalation"
                 >
-                  Need more help?
+                  What should I do next?
                   <span className="explanation-chevron" aria-hidden="true">
                     {escalationExpanded ? '▴' : '▾'}
                   </span>

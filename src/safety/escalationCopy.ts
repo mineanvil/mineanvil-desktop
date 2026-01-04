@@ -49,7 +49,7 @@ export function getEscalationCopy(
     return {
       whatHappened: "This account can't be used with MineAnvil.",
       whatItMeans: "Minecraft ownership couldn't be confirmed for this account.",
-      whatNext: "Try a different Microsoft account that owns Minecraft, or contact support for help.",
+      whatNext: "Try a different Microsoft account that owns Minecraft, or you can ask for help.",
     }
   }
 
@@ -60,7 +60,7 @@ export function getEscalationCopy(
     return {
       whatHappened: 'MineAnvil is still confirming access or preparing Minecraft.',
       whatItMeans: "This is usually temporary and doesn't mean anything is wrong.",
-      whatNext: 'You can wait a moment or try again later. If it doesn't resolve, support can help.',
+      whatNext: "You can wait a moment or try again later. If it doesn't resolve, you can ask for help.",
     }
   }
 
