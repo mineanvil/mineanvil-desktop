@@ -1,0 +1,108 @@
+You are working in the MineAnvil repository (Electron + React UI).
+
+Context
+Layer 3 is unlocked.
+SP3.1 (Environment Visibility) is complete.
+Now begin **Stop Point 3.2 — Safety Signals**.
+
+Stop Point 3.2 Definition:
+MineAnvil surfaces clear, non-technical signals indicating whether
+everything is normal, needs attention, or is unsupported.
+
+This is still Parent UX. It must remain calm, plain-language, and state-driven.
+
+---
+
+Task
+Implement a **Safety Signal model + UI presentation** that categorises the current state into one of:
+
+1) Normal (All good)
+2) Needs attention (Something isn’t right, but not scary)
+3) Unsupported (MineAnvil cannot safely manage this environment right now)
+
+Safety Signals must be visible to parents without requiring them to read Diagnostics.
+
+---
+
+Hard Constraints (Non-Negotiable)
+- ❌ No repair/install/fix actions added (read-only signals only)
+- ❌ No new backend calls or new IPC messages
+- ❌ Do NOT expose technical details (no hashes, manifests, lockfiles, JVM arguments, etc.)
+- ❌ Do NOT require users to understand what Java is
+- ❌ Do NOT change existing behaviour or workflows
+- ❌ Do NOT implement escalation paths (that is SP3.4)
+- ✅ You MAY reuse existing app state already available in the renderer
+- ✅ You MAY refactor UI code to support clean state mapping
+
+---
+
+Signal Inputs (Allowed)
+Derive the signal from existing, already-known states, such as:
+- Signed-in status / authentication state
+- Ownership status
+- Minecraft readiness status (“ready to play” vs not ready)
+- Known fatal error states already surfaced (startup failure, install failure)
+- Any existing “unsupported/unverified app” / blocked states already represented
+
+Do NOT fetch new information.
+
+---
+
+Required Output UX
+
+A) Home page Safety Signal (primary)
+The “Environment Status” card must show a single clear signal:
+- A short title (one line)
+- A short explanation (one line)
+- Optional “Last checked” style text ONLY if already available without new calls
+
+Examples (use your judgement; keep it calm):
+Normal:
+- Title: “Everything looks good”
+- Body: “Minecraft is ready and managed by MineAnvil.”
+
+Needs attention:
+- Title: “Action needed”
+- Body: “MineAnvil can’t start Minecraft yet.”
+
+Unsupported:
+- Title: “Not supported right now”
+- Body: “MineAnvil can’t safely manage this setup.”
+
+B) Visual difference
+Make the three states visually distinct (subtle, not alarming).
+Use consistent styling patterns (badge/stripe/icon).
+No flashing, no aggressive warning design.
+
+C) No extra controls
+The card must remain read-only.
+No “Fix now”, no “Install”, no “Open diagnostics” added here.
+(Existing navigation remains available via sidebar.)
+
+---
+
+Implementation Guidance
+1) Introduce a small pure function (or module) that maps existing UI state -> SafetySignal:
+   type SafetySignal = "normal" | "attention" | "unsupported"
+   Provide a single source of truth for this mapping.
+
+2) Update the Home Environment Status card to render copy based on SafetySignal.
+
+3) Keep copy parent-safe and non-technical.
+Prefer: “MineAnvil can’t start Minecraft yet”
+Avoid: “Runtime missing” / “Lockfile mismatch” / “Auth token expired”
+
+---
+
+Validation Checklist
+- Home page shows exactly one of the three signals at all times
+- Parents can understand the signal without technical knowledge
+- No new controls added to resolve issues
+- No new backend calls or IPC messages
+- No behavioural changes to existing flows
+- Signal mapping is centralised and testable
+
+---
+
+Suggested Commit Message
+“SP3.2 Safety signals — normal/attention/unsupported (read-only)”

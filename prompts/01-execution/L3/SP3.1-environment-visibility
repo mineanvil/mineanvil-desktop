@@ -1,0 +1,81 @@
+You are working in the MineAnvil repository (Electron + React UI).
+
+Context
+Layer 2 is complete through SP2.4.
+We are beginning Layer 3 — Parent UX.
+
+This task implements **Stop Point 3.1 — Environment Visibility** only.
+
+---
+
+Stop Point 3.1 — Environment Visibility
+
+Definition:
+Parents can see the high-level state of the Minecraft environment
+(version status, health, control) in plain language.
+No mutation or configuration is possible.
+
+---
+
+Task
+Add a **read-only environment visibility surface** that clearly communicates
+the current state of the Minecraft environment to a parent user.
+
+---
+
+Hard Constraints (Non-Negotiable)
+- ❌ Read-only only — no actions, buttons, or controls that mutate state
+- ❌ Do NOT reuse Diagnostics UI or expose technical details
+- ❌ Do NOT add repair, install, retry, or fix actions
+- ❌ Do NOT introduce new backend calls or IPC messages
+- ❌ Do NOT change existing behaviour or logic
+- ❌ Do NOT duplicate existing status information in multiple places
+
+---
+
+Allowed Data Sources
+You may reuse existing state already available in the UI, such as:
+- Minecraft readiness / launch readiness
+- Ownership state
+- Version label already displayed (e.g. “latest”)
+
+Do NOT fetch new data.
+
+---
+
+UX Requirements
+- Plain language
+- Calm tone
+- High-level summary only
+- Parent can understand it at a glance
+- No obligation to act
+
+Example wording (illustrative only):
+- “Minecraft is ready and managed by MineAnvil.”
+- “Everything looks good.”
+
+Do not invent warnings or error states.
+
+---
+
+Placement
+Choose ONE location only:
+- Home page, near the top
+OR
+- Minecraft page, above primary actions
+
+Do not add it to both.
+
+---
+
+Validation Checklist
+- Parent can answer “Is everything OK?” without scrolling
+- No controls allow changing anything
+- No technical terminology is visible
+- No existing behaviour changed
+- SP3.1 definition is satisfied and nothing else is advanced
+
+---
+
+Suggested Commit Message
+“SP3.1 Environment visibility — read-only parent status”

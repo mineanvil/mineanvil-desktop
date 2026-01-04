@@ -1,0 +1,83 @@
+You are working in the MineAnvil repository (Electron + React UI).
+
+We are implementing **Stop Point 3.3 — Explain Without Teaching**.
+
+SP3.1 and SP3.2 are complete.
+SafetySignal mapping logic is frozen and must not be changed.
+
+---
+
+Stop Point 3.3 Definition
+Parents can optionally learn why something matters through calm,
+plain-language explanations without being required to understand technical details.
+
+---
+
+Task (Minimal Implementation)
+Add OPTIONAL, COLLAPSED-BY-DEFAULT explanations to the Home page
+Environment Status card for each SafetySignal state:
+- normal
+- attention
+- unsupported
+
+Explanations must be:
+- opt-in (user clicks)
+- collapsed by default
+- read-only
+- max two sentences each
+- no jargon
+- no instructions
+
+---
+
+Hard Constraints (Non-Negotiable)
+- ❌ Do NOT change SafetySignal mapping logic or inputs
+- ❌ Do NOT add new backend calls or IPC
+- ❌ Do NOT add actions/buttons/links that tell users what to do
+- ❌ Do NOT mention technical terms: Java, runtime, lockfile, manifest, UUID, tokens
+- ❌ Do NOT add “Open diagnostics”, “Fix now”, “Reinstall”, or similar
+- ❌ Do NOT add modals; keep the disclosure inline
+
+---
+
+UI Pattern
+Add a small link under the existing status text:
+- Label: “What does this mean?”
+- Clicking toggles an inline expanded panel containing the explanation text.
+
+The link must:
+- be subtle (secondary)
+- not visually noisy
+- be accessible (keyboard focusable)
+
+---
+
+Copy (authoritative, do not reword)
+
+For SafetySignal = "normal":
+  “MineAnvil checks your account and keeps Minecraft in a known-good state.
+   If something changes, you’ll see it here.”
+
+For SafetySignal = "attention":
+  “MineAnvil needs one step before Minecraft can start.
+   This is usually quick, and you won’t break anything by waiting.”
+
+For SafetySignal = "unsupported":
+  “MineAnvil can’t safely manage this setup right now.
+   This usually means the account isn’t eligible or access is blocked.”
+
+---
+
+Validation Checklist
+- Explanations are collapsed by default
+- Toggle works and does not change any app behaviour
+- SafetySignal logic is unchanged
+- No new actions or guidance introduced
+- No technical jargon introduced
+- Copy is exactly as provided
+- Only applied to the Home Environment Status card (one surface only)
+
+---
+
+Suggested Commit Message
+“SP3.3 Add optional explanations to safety signals (no behaviour changes)”
