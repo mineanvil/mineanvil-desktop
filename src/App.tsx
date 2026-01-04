@@ -4,6 +4,7 @@ import { getMineAnvilApi } from './bridge/mineanvil'
 import type { AuthStatus, MineAnvilApi } from '../electron/src/shared/ipc-types'
 import { buildDiagnosticsBundle, downloadDiagnosticsJson } from './diagnostics/export'
 import { getRendererLogger } from './logging/renderer'
+import { getSafetySignal, type SafetySignal } from './safety/safetySignal'
 
 type NavSection = 'home' | 'account' | 'minecraft' | 'diagnostics'
 
@@ -12,6 +13,7 @@ function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [isFetchingStatus, setIsFetchingStatus] = useState<boolean>(false)
+  const [explanationExpanded, setExplanationExpanded] = useState<boolean>(false)
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false)
   const [signInMessage, setSignInMessage] = useState<string | null>(null)
   const [isSigningOut, setIsSigningOut] = useState<boolean>(false)
@@ -76,15 +78,75 @@ function App() {
   const isBrowserMode = typeof window !== 'undefined' && !window.mineanvil
   const ownershipState = authStatus?.signedIn ? authStatus.ownershipState : undefined
   const launchBlocked = !authStatus?.signedIn || ownershipState !== 'OWNED'
+  // Minecraft is ready when launch is not blocked (signed in + owned)
+  const minecraftReady = !launchBlocked
 
-  const renderHomeContent = () => (
-    <div className="main-content">
-      <div className="content-header">
-        <h1 className="content-title">Minecraft, set up safely</h1>
-        <p className="content-subtitle">Keeps Minecraft working safely for your family</p>
-      </div>
+  const renderHomeContent = () => {
+    // Get Safety Signal from existing app state
+    const safetySignalInputs = authStatus
+      ? {
+          signedIn: authStatus.signedIn,
+          ownershipState: authStatus.signedIn ? authStatus.ownershipState : undefined,
+          minecraftReady,
+        }
+      : null
+    const safetySignal = getSafetySignal(safetySignalInputs)
+    const safetySignalClass = `safety-${safetySignal.signal}`
 
-      <div className="status-grid">
+    // Get explanation text based on safety signal
+    const getExplanationText = (signal: SafetySignal): string => {
+      switch (signal) {
+        case 'normal':
+          return "MineAnvil checks your account and keeps Minecraft in a known-good state. If something changes, you'll see it here."
+        case 'attention':
+          return "MineAnvil needs one step before Minecraft can start. This is usually quick, and you won't break anything by waiting."
+        case 'unsupported':
+          return "MineAnvil can't safely manage this setup right now. This usually means the account isn't eligible or access is blocked."
+      }
+    }
+
+    const explanationText = getExplanationText(safetySignal.signal)
+
+    return (
+      <div className="main-content">
+        <div className="content-header">
+          <h1 className="content-title">Minecraft made simple.</h1>
+          <p className="content-subtitle">Set up once. Safe to use every day.</p>
+        </div>
+
+        {/* Safety Signal - Environment Status */}
+        <section className={`status-card ${safetySignalClass}`} style={{ marginBottom: '1.5rem' }}>
+          <div className="status-card-header">
+            <h2 className="status-card-title">Environment Status</h2>
+          </div>
+          <div className="status-content">
+            <h3 className="safety-signal-title">{safetySignal.title}</h3>
+            <p className="safety-signal-body">{safetySignal.body}</p>
+            {explanationText && (
+              <>
+                <button
+                  type="button"
+                  className="explanation-toggle"
+                  onClick={() => setExplanationExpanded(!explanationExpanded)}
+                  aria-expanded={explanationExpanded}
+                  aria-controls="safety-signal-explanation"
+                >
+                  What does this mean?
+                  <span className="explanation-chevron" aria-hidden="true">
+                    {explanationExpanded ? '▴' : '▾'}
+                  </span>
+                </button>
+                {explanationExpanded && (
+                  <div id="safety-signal-explanation" className="explanation-panel">
+                    <p className="explanation-text">{explanationText}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+
+        <div className="status-grid">
         {/* Account Status */}
         <section className="status-card">
           <div className="status-card-header">
@@ -225,17 +287,6 @@ function App() {
                 </div>
               ) : (
                 <>
-                  <div className="launch-controls">
-                    <label className="launch-version-label">
-                      <span>Minecraft version:</span>
-                      <input
-                        className="launch-version-input"
-                        value={vanillaVersion}
-                        onChange={(e) => setVanillaVersion(e.target.value)}
-                        placeholder="latest or 1.21.4"
-                      />
-                    </label>
-                  </div>
                   <div className="launch-actions">
                     <button
                       className="button-primary button-large"
@@ -271,40 +322,59 @@ function App() {
                     >
                       {isLaunchingVanilla ? 'Launching…' : 'Launch Minecraft'}
                     </button>
-                    <button
-                      className="button-secondary"
-                      onClick={() => {
-                        void (async () => {
-                          setIsInstallingVanilla(true)
-                          setInstallVanillaError(null)
-                          setInstallVanillaCanRetry(true)
-                          logger.info('installVanilla clicked', { version: vanillaVersion })
-                          try {
-                            const res = await api.installVanilla(vanillaVersion)
-                            if (res.ok) {
-                              setInstallVanillaJson(JSON.stringify(res, null, 2))
-                              setInstallVanillaError(null)
-                              setInstallVanillaCanRetry(true)
-                              logger.info('installVanilla success', { ok: true })
-                            } else {
-                              const msg = failureMessage(res, 'Install failed.')
+                  </div>
+                  <div className="launch-controls launch-controls-advanced">
+                    <label className="launch-version-label">
+                      <span>Minecraft version (managed automatically)</span>
+                      <p className="launch-version-helper">
+                        MineAnvil manages the Minecraft version for you. You don't need to change this unless asked by support.
+                      </p>
+                      <input
+                        className="launch-version-input"
+                        value={vanillaVersion}
+                        onChange={(e) => setVanillaVersion(e.target.value)}
+                        placeholder="latest or 1.21.4"
+                      />
+                    </label>
+                    <div className="launch-actions-advanced">
+                      <button
+                        className="button-secondary button-small"
+                        onClick={() => {
+                          void (async () => {
+                            setIsInstallingVanilla(true)
+                            setInstallVanillaError(null)
+                            setInstallVanillaCanRetry(true)
+                            logger.info('installVanilla clicked', { version: vanillaVersion })
+                            try {
+                              const res = await api.installVanilla(vanillaVersion)
+                              if (res.ok) {
+                                setInstallVanillaJson(JSON.stringify(res, null, 2))
+                                setInstallVanillaError(null)
+                                setInstallVanillaCanRetry(true)
+                                logger.info('installVanilla success', { ok: true })
+                              } else {
+                                const msg = failureMessage(res, 'Install failed.')
+                                setInstallVanillaError(msg)
+                                setInstallVanillaCanRetry(res.failure?.canRetry ?? true)
+                                logger.info('installVanilla failure', { ok: false })
+                              }
+                            } catch (err) {
+                              const msg = err instanceof Error ? err.message : String(err)
                               setInstallVanillaError(msg)
-                              setInstallVanillaCanRetry(res.failure?.canRetry ?? true)
-                              logger.info('installVanilla failure', { ok: false })
+                              logger.info('installVanilla threw', { error: msg })
+                            } finally {
+                              setIsInstallingVanilla(false)
                             }
-                          } catch (err) {
-                            const msg = err instanceof Error ? err.message : String(err)
-                            setInstallVanillaError(msg)
-                            logger.info('installVanilla threw', { error: msg })
-                          } finally {
-                            setIsInstallingVanilla(false)
-                          }
-                        })()
-                      }}
-                      disabled={isInstallingVanilla || launchBlocked || (!installVanillaCanRetry && installVanillaError !== null)}
-                    >
-                      {isInstallingVanilla ? 'Installing…' : 'Install version'}
-                    </button>
+                          })()
+                        }}
+                        disabled={isInstallingVanilla || launchBlocked || (!installVanillaCanRetry && installVanillaError !== null)}
+                      >
+                        {isInstallingVanilla ? 'Installing…' : 'Install version'}
+                      </button>
+                      <p className="launch-action-helper">
+                        Use this only if Minecraft isn't ready or support asks you to.
+                      </p>
+                    </div>
                   </div>
                   {launchVanillaError ? (
                     <div className="status-error">
@@ -328,8 +398,9 @@ function App() {
           </section>
         ) : null}
       </div>
-    </div>
-  )
+      </div>
+    )
+  }
 
   const renderAccountContent = () => (
     <div className="main-content">
