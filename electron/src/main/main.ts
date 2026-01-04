@@ -288,6 +288,8 @@ async function rotateLogIfTooLarge(params: {
   }
 }
 
+let mainWindow: BrowserWindow | null = null;
+
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
@@ -307,6 +309,13 @@ function createMainWindow(): BrowserWindow {
        */
       preload: path.join(__dirname, "../preload/preload.js"),
     },
+  });
+
+  mainWindow = win;
+  
+  // Clear reference when window is closed
+  win.on("closed", () => {
+    mainWindow = null;
   });
 
   return win;
@@ -516,10 +525,10 @@ app.whenReady().then(async () => {
     );
   }
 
-  registerIpcHandlers();
-
   const win = createMainWindow();
   await loadRenderer(win);
+  
+  registerIpcHandlers(mainWindow);
 
   app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) {

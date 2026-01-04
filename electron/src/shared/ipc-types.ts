@@ -24,6 +24,7 @@ export const IPC_CHANNELS = {
   installVanilla: "mineanvil:installVanilla",
   getLaunchCommand: "mineanvil:getLaunchCommand",
   launchVanilla: "mineanvil:launchVanilla",
+  closeWindow: "mineanvil:closeWindow",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -145,6 +146,10 @@ export interface LaunchVanillaResult {
   readonly failure?: FailureInfo;
 }
 
+export interface CloseWindowResult {
+  readonly ok: boolean;
+}
+
 /**
  * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
  * The renderer should never import from `electron` directly.
@@ -188,6 +193,9 @@ export interface MineAnvilApi {
 
   /** Launch vanilla Minecraft (Electron/Windows only). */
   launchVanilla(version: string): Promise<LaunchVanillaResult>;
+
+  /** Close the main window (Electron/Windows only). */
+  closeWindow(): Promise<CloseWindowResult>;
 }
 
 declare global {

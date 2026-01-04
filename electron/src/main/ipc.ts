@@ -5,7 +5,7 @@
  * - This file imports `electron` and must only be executed in Electron main.
  */
 
-import { dialog, ipcMain } from "electron";
+import { dialog, ipcMain, BrowserWindow } from "electron";
 import { createWriteStream, type WriteStream } from "node:fs";
 import * as path from "node:path";
 import {
@@ -625,7 +625,7 @@ function redactLaunchArgs(args: string[]): string[] {
 
 let lastOwnershipCheckWarn: { key: string; ts: number } | null = null;
 
-export function registerIpcHandlers(): void {
+export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   ipcMain.handle(IPC_CHANNELS.ping, async () => ({ ok: true, ts: Date.now() }));
   ipcMain.handle(IPC_CHANNELS.appendRendererLog, async (_evt, entry: LogEntry) => {
     appendRendererLogEntry(entry);
@@ -997,6 +997,15 @@ export function registerIpcHandlers(): void {
       const failure = looksLikeRuntimeFailure(msg) ? runtimeFailureFromError(e) : launchFailureFromError(e);
       return { ok: false, error: msg, failure } as const;
     }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.closeWindow, async () => {
+    const window = mainWindow || BrowserWindow.getAllWindows()[0];
+    if (window && !window.isDestroyed()) {
+      window.close();
+      return { ok: true } as const;
+    }
+    return { ok: false } as const;
   });
 }
 

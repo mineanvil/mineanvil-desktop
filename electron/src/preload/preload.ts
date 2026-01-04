@@ -28,6 +28,7 @@ const api: MineAnvilApi = {
   installVanilla: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.installVanilla, version),
   getLaunchCommand: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.getLaunchCommand, version),
   launchVanilla: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.launchVanilla, version),
+  closeWindow: async () => ipcRenderer.invoke(IPC_CHANNELS.closeWindow),
 };
 
 contextBridge.exposeInMainWorld("mineanvil", api);

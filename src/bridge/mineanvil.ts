@@ -75,6 +75,9 @@ function createBrowserStub(): BrowserStubApi {
       error: "launchVanilla is only available in Electron on Windows",
       failure: notElectronFailure("LAUNCH", "launchVanilla"),
     }),
+    closeWindow: async () => ({
+      ok: false,
+    }),
     // Dev-only escape hatch for browser mode. Not part of the public API contract.
     __dev: {
       setAuthStatus: (status: AuthStatus) => {
