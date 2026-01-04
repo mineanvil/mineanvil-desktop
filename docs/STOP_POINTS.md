@@ -534,8 +534,30 @@ and what to do next, without blame or panic.
 - [done] No new actions or buttons introduced
 - [done] No backend/IPC changes
 
-Evidence / notes:
-- [done] Escalation copy appears only for non-normal signals; collapsed by default; no new actions; no backend/IPC changes.
+### Validation Checklist
+- [done] Escalation copy appears only when SafetySignal ≠ "normal"
+- [done] Escalation disclosure is collapsed by default
+- [done] Exactly three sections are shown when expanded:
+  - What happened
+  - What it means
+  - What to do next
+- [done] Copy is plain-language and parent-safe
+- [done] No technical jargon introduced
+- [done] No new actions, buttons, or links added
+- [done] No backend, IPC, or state changes
+- [done] SafetySignal mapping logic unchanged
+- [done] Keyboard accessible (Tab → Enter toggles)
+- [done] ARIA attributes wired correctly
+
+### Evidence / Notes
+- [done] Escalation disclosure implemented on Home → Environment Status card
+- [done] Disclosure uses same inline, optional pattern as SP3.3
+- [done] Copy varies by SafetySignal (attention vs unsupported)
+- [done] Escalation text is reassurance-focused and non-alarming
+- [done] No behavioural or control-flow changes introduced
+- [done] Implementation uses only existing renderer state
+
+**Current Status**: ✅ **SP3.4 is COMPLETE**.
 
 ---
 
@@ -559,7 +581,10 @@ Layer 3 is complete ONLY when:
 - [done] Stop Point 3.3 is fully complete
 - [done] Stop Point 3.4 is fully complete
 
-**Current Status**: ✅ **Layer 3 is COMPLETE**. All stop points validated.
+**Current Status**: ✅ Layer 3 is COMPLETE.
+
+All parent-facing UX requirements (visibility, signals, explanations, escalation)
+are implemented as read-only, state-driven UI with no technical exposure.
 
 ---
 
