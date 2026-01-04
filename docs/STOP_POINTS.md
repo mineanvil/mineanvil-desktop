@@ -524,6 +524,19 @@ Definition:
 When issues occur, MineAnvil explains what happened, what it means,
 and what to do next, without blame or panic.
 
+### Escalation Content
+- [done] Escalation copy module created (src/safety/escalationCopy.ts)
+- [done] Escalation content appears only for non-normal safety signals
+- [done] Escalation content is collapsed by default
+- [done] Three-part structure: What happened / What it means / What to do next
+- [done] Parent-safe, calm tone with no technical jargon
+- [done] Reuses existing SP3.3 toggle pattern
+- [done] No new actions or buttons introduced
+- [done] No backend/IPC changes
+
+Evidence / notes:
+- [done] Escalation copy appears only for non-normal signals; collapsed by default; no new actions; no backend/IPC changes.
+
 ---
 
 ## Layer 3 Non-Goals (Explicit)
@@ -544,9 +557,9 @@ Layer 3 is complete ONLY when:
 - [done] Stop Point 3.1 is fully complete
 - [done] Stop Point 3.2 is fully complete
 - [done] Stop Point 3.3 is fully complete
-- [ ] Stop Point 3.4 is fully complete
+- [done] Stop Point 3.4 is fully complete
 
-**Current Status**: 🔓 **Layer 3 is in progress**. SP3.1, SP3.2, and SP3.3 complete. SP3.4 remains.
+**Current Status**: ✅ **Layer 3 is COMPLETE**. All stop points validated.
 
 ---
 
