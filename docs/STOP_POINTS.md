@@ -313,9 +313,210 @@ summary.md
 
 ---
 
-# Layer 3 — Parent UX (LOCKED)
+## Stop Point 2.4 — UX Hygiene & Presentation Pass
 
-No work permitted until Layer 2 is complete.
+Definition:
+The MineAnvil UI is desktop-first, parent-safe, and state-driven.
+Technical controls and diagnostics are available but clearly optional.
+No UX element pressures parents to understand or manage technical details.
+
+### Desktop-First Layout
+- [done] Desktop-first layout scaffold (nav + content + details panel)
+
+### State-First UX
+- [done] State-first UX (status before actions)
+
+### Parent-Safe Copy and Tone
+- [done] Parent-safe copy and tone applied consistently
+
+### Advanced Controls
+- [done] Advanced controls clearly labelled and de-emphasised
+
+### Diagnostics
+- [done] Diagnostics framed as optional and support-oriented
+
+### Scope Boundaries
+- [done] No behaviour, IPC, or state changes introduced
+
+Evidence / notes:
+- [done] UX screenshots reviewed and approved
+- [done] No functional changes made
+- [done] UX validated against parent/guardian mental model
+
+**Current Status**: ✅ **SP2.4 is COMPLETE**.
+
+SP2.4 closed on 2026-01-03.
+UX hygiene and presentation pass completed with no behaviour, IPC, or backend changes.
+
+---
+
+## Layer 2 Completion Criteria
+
+Layer 2 is complete ONLY when:
+- [done] Stop Point 2.1 is fully complete
+- [done] Stop Point 2.2 is fully complete
+- [done] Stop Point 2.3 is fully complete
+- [done] Stop Point 2.4 is fully complete
+
+**Current Status**: ✅ **Layer 2 is COMPLETE up to SP2.4**.
+
+---
+
+# Layer 3 — Parent UX
+
+Purpose:
+Provide parents with confidence, visibility, and reassurance
+without exposing technical controls or mutating the Minecraft environment.
+
+---
+
+## Stop Point 3.1 — Environment Visibility
+
+Definition:
+Parents can see the high-level state of the Minecraft environment
+(version status, health, control) in plain language.
+No mutation or configuration is possible.
+
+### Validation Checklist
+- [done] Parent can answer "Is everything OK?" without scrolling
+- [done] No controls allow changing anything
+- [done] No technical terminology is visible
+- [done] No existing behaviour changed
+- [done] SP3.1 definition is satisfied and nothing else is advanced
+
+Evidence / notes:
+- [done] A read-only "Environment Status" surface is visible on the Home page
+- [done] Copy is plain-language and parent-safe
+- [done] State is high-level only (ready / managed / latest)
+- [done] No controls or actions mutate state
+- [done] No technical details are exposed
+- [done] No backend, IPC, or behavioural changes were introduced
+
+**Current Status**: ✅ **SP3.1 is COMPLETE**.
+
+SP3.1 completed on 2026-01-03. Environment visibility implemented as a read-only parent-facing status surface on Home.
+
+---
+
+## Stop Point 3.2 — Safety Signals
+
+Definition:
+MineAnvil surfaces clear, non-technical signals indicating whether
+everything is normal, needs attention, or is unsupported.
+
+### Safety Signal Model
+- [done] Safety signal model defined (normal / attention / unsupported)
+- [done] Centralized implementation in `src/safety/safetySignal.ts`
+- [done] Deterministic mapping from existing renderer state only
+- [done] No new state introduced
+
+### Signal States
+- [done] Normal state implemented (signed in, owned, ready)
+- [done] Attention state implemented (signed out, unverified temporary, or not ready)
+- [done] Unsupported state implemented (not owned, app not approved)
+- [done] Exactly one signal always shown
+
+### User Experience
+- [done] Plain-language, parent-safe copy
+- [done] Temporary states do not imply failure
+- [done] Unsupported states clearly distinguished
+- [done] Read-only display (no actions, buttons, or escalation controls)
+- [done] Subtle visual distinction only (no alarm UX)
+
+### Technical Constraints
+- [done] No new backend calls
+- [done] No IPC changes
+- [done] No behavioural or control-flow changes
+- [done] No new state introduced
+
+Evidence / notes:
+- [done] Safety signals verified visually on Home page via Environment Status card
+- [done] All three states validated (normal, attention, unsupported)
+- [done] Signal mapping derived from existing state: signedIn, ownershipState, minecraftReady
+- [done] No backend, IPC, or behavioural changes made
+- [done] Implementation in `src/safety/safetySignal.ts`
+
+**Current Status**: ✅ **SP3.2 is COMPLETE**.
+
+SP3.2 completed on 2026-01-03. Safety signals implemented as centralized, read-only status indicators on Home page.
+
+---
+
+## Stop Point 3.3 — Explain Without Teaching
+
+Definition:
+Parents can optionally learn why something matters through calm,
+plain-language explanations without being required to understand
+technical details.
+
+### Purpose
+Provide optional, plain-language explanations that help parents understand
+why a status matters, without requiring technical knowledge or action.
+
+### Allowed Explanation Patterns
+- Inline "Why this matters" or "What does this mean?" explanations
+- Explanations attached to existing status or signal surfaces
+- Read-only text only
+
+### Key Principles
+- Explanations are optional and collapsed by default
+- No explanation introduces obligation or action
+- No technical jargon
+- Maximum two sentences per explanation
+- Reassurance over mechanics
+
+### Explicit Non-Goals (Not Implemented)
+SP3.3 does NOT include:
+- Instructions
+- Troubleshooting steps
+- Technical education
+- Links to documentation
+- Tooltips that imply required reading
+- Actions or controls that mutate state
+- New backend calls or IPC messages
+- Behaviour or signal logic changes
+
+### Acceptance Criteria
+SP3.3 is complete ONLY when:
+- Explanations are optional (collapsed by default)
+- All explanations are parent-safe (plain language, no technical jargon)
+- No behaviour or signal logic changes
+- No new actions introduced
+- Explanations attached to existing status or signal surfaces only
+- Maximum two sentences per explanation
+- Reassurance-focused tone throughout
+
+---
+
+## Stop Point 3.4 — Safe Escalation Paths
+
+Definition:
+When issues occur, MineAnvil explains what happened, what it means,
+and what to do next, without blame or panic.
+
+---
+
+## Layer 3 Non-Goals (Explicit)
+
+Layer 3 does NOT include:
+- Mods or plugins
+- World management
+- Server control
+- Scheduling or enforcement
+- Content marketplaces
+- Automatic environment mutation
+
+---
+
+## Layer 3 Completion Criteria
+
+Layer 3 is complete ONLY when:
+- [done] Stop Point 3.1 is fully complete
+- [done] Stop Point 3.2 is fully complete
+- [ ] Stop Point 3.3 is fully complete
+- [ ] Stop Point 3.4 is fully complete
+
+**Current Status**: 🔓 **Layer 3 is in progress**. SP3.1 and SP3.2 complete. SP3.3 and SP3.4 remain.
 
 ---
 
