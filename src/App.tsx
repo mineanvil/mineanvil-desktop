@@ -5,6 +5,7 @@ import type { AuthStatus, MineAnvilApi } from '../electron/src/shared/ipc-types'
 import { buildDiagnosticsBundle, downloadDiagnosticsJson } from './diagnostics/export'
 import { getRendererLogger } from './logging/renderer'
 import { getSafetySignal, type SafetySignal } from './safety/safetySignal'
+import { getEscalationCopy } from './safety/escalationCopy'
 
 type NavSection = 'home' | 'account' | 'minecraft' | 'diagnostics'
 
@@ -14,6 +15,7 @@ function App() {
   const [statusError, setStatusError] = useState<string | null>(null)
   const [isFetchingStatus, setIsFetchingStatus] = useState<boolean>(false)
   const [explanationExpanded, setExplanationExpanded] = useState<boolean>(false)
+  const [escalationExpanded, setEscalationExpanded] = useState<boolean>(false)
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false)
   const [signInMessage, setSignInMessage] = useState<string | null>(null)
   const [isSigningOut, setIsSigningOut] = useState<boolean>(false)
@@ -106,6 +108,7 @@ function App() {
     }
 
     const explanationText = getExplanationText(safetySignal.signal)
+    const escalationCopy = getEscalationCopy(safetySignal.signal, safetySignalInputs)
 
     return (
       <div className="main-content">
@@ -139,6 +142,38 @@ function App() {
                 {explanationExpanded && (
                   <div id="safety-signal-explanation" className="explanation-panel">
                     <p className="explanation-text">{explanationText}</p>
+                  </div>
+                )}
+              </>
+            )}
+            {escalationCopy && (
+              <>
+                <button
+                  type="button"
+                  className="explanation-toggle"
+                  onClick={() => setEscalationExpanded(!escalationExpanded)}
+                  aria-expanded={escalationExpanded}
+                  aria-controls="safety-signal-escalation"
+                >
+                  Need more help?
+                  <span className="explanation-chevron" aria-hidden="true">
+                    {escalationExpanded ? '▴' : '▾'}
+                  </span>
+                </button>
+                {escalationExpanded && (
+                  <div id="safety-signal-escalation" className="escalation-panel">
+                    <div className="escalation-section">
+                      <p className="escalation-label">What happened</p>
+                      <p className="escalation-text">{escalationCopy.whatHappened}</p>
+                    </div>
+                    <div className="escalation-section">
+                      <p className="escalation-label">What it means</p>
+                      <p className="escalation-text">{escalationCopy.whatItMeans}</p>
+                    </div>
+                    <div className="escalation-section">
+                      <p className="escalation-label">What to do next</p>
+                      <p className="escalation-text">{escalationCopy.whatNext}</p>
+                    </div>
                   </div>
                 )}
               </>

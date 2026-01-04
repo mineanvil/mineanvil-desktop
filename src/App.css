@@ -219,6 +219,39 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+.escalation-panel {
+  margin-top: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.escalation-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.escalation-label {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.escalation-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .status-card-header {
   display: flex;
   justify-content: space-between;
