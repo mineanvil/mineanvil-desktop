@@ -208,6 +208,52 @@ Evidence / notes:
 
 ---
 
+## Stop Point 1.6 — Bundled Java Runtime (Portable Builds)
+
+Definition:
+Portable builds (win-unpacked) must run on clean Windows machines without requiring system Java installation or environment variable configuration. The Java 17 JRE is bundled at build time and resolved automatically from the packaged application resources.
+
+### Build-Time Java Fetching
+- [ ] Build script downloads pinned Eclipse Temurin 17 JRE (Windows x64)
+- [ ] SHA256 checksum is verified before extraction
+- [ ] Runtime is extracted to normalized vendor directory structure
+- [ ] Vendor directory is gitignored (not committed to repository)
+- [ ] Build fails fast if checksum mismatch occurs
+- [ ] Download is skipped if runtime already exists (fast rebuilds)
+
+### Packaging Integration
+- [ ] electron-builder config includes bundled runtime in extraResources
+- [ ] Packaged output contains `resources/java/win32-x64/runtime/bin/java.exe`
+- [ ] Directory structure is normalized and deterministic (no globbing)
+- [ ] Prebuild hook fetches runtime before packaging
+
+### Runtime Resolution
+- [ ] Bundled runtime is resolved first (from process.resourcesPath)
+- [ ] Resolution path is deterministic (no runtime globbing)
+- [ ] Fallback to MINEANVIL_JAVA_PATH if bundled runtime missing
+- [ ] Fallback to PATH only if MINEANVIL_ALLOW_PATH_JAVA=1 (dev only)
+- [ ] Windows-only behavior is properly guarded
+
+### Parent-Friendly Error Messages
+- [ ] Missing bundled runtime shows: "MineAnvil is missing a required component (Java). Please reinstall MineAnvil."
+- [ ] No environment variable instructions in parent-facing UI
+- [ ] Developer-only guidance logged only (not displayed)
+- [ ] All errors use plain, calm language
+
+### Clean Machine Validation
+- [ ] Portable build runs on Windows machine with NO Java installed
+- [ ] Portable build runs with NO MINEANVIL_JAVA_PATH set
+- [ ] Launch succeeds without manual configuration
+- [ ] No "Java required" errors displayed to parents
+
+Evidence / notes:
+- [ ] Implementation evidence (when complete)
+- [ ] Clean machine test report (when complete)
+
+**Current Status**: ⏳ **SP1.6 is PLANNED** (implementation in progress).
+
+---
+
 ## Layer 1 Completion Criteria
 
 Layer 1 is complete ONLY when:

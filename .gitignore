@@ -12,4 +12,7 @@ release/
 !.env.example
 .DS_Store
 electron/src/shared/generated/
+electron/vendor/java/**
+!electron/vendor/java/.gitkeep
+.downloads/
 .claude

@@ -6,8 +6,9 @@
   "main": "electron/dist/main/main.js",
   "scripts": {
     "generate:ms-client-id": "tsx scripts/generate-ms-client-id.ts",
+    "fetch:java-runtime": "tsx scripts/fetch-java-runtime.ts",
     "prebuild": "npm run generate:ms-client-id",
-    "prebuild:electron": "npm run generate:ms-client-id",
+    "prebuild:electron": "npm run generate:ms-client-id && npm run fetch:java-runtime",
     "predev": "npm run generate:ms-client-id",
     "predev:electron": "npm run generate:ms-client-id",
     "dev": "vite --host 0.0.0.0 --port 5173",
@@ -56,6 +57,13 @@
     "files": [
       "dist/**/*",
       "electron/dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "electron/vendor/java/win32-x64/runtime",
+        "to": "java/win32-x64/runtime",
+        "filter": ["**/*"]
+      }
     ],
     "win": {
       "target": "nsis",

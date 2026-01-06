@@ -15,7 +15,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import * as path from "node:path";
 
-export type JavaResolutionSource = "env" | "path";
+export type JavaResolutionSource = "bundled" | "env" | "path";
 
 export type JavaStartupValidation =
   | {
@@ -115,22 +115,84 @@ function parseJavaMajor(versionOutput: string): number | null {
 }
 
 /**
+ * Resolve bundled Java runtime (packaged builds only).
+ *
+ * Stop Point 1.6 — Bundled Java Runtime (Portable Builds)
+ *
+ * Returns the bundled java.exe path if:
+ * - Running in a packaged Electron app (process.resourcesPath defined)
+ * - Platform is Windows
+ * - resources/java/win32-x64/runtime/bin/java.exe exists
+ *
+ * Otherwise returns null.
+ */
+function resolveBundledJava(): string | null {
+  // Only available in packaged builds
+  if (!process.resourcesPath) {
+    return null;
+  }
+
+  // Only supported on Windows
+  if (process.platform !== "win32") {
+    return null;
+  }
+
+  // Deterministic path (no globbing)
+  const javaExe = path.join(process.resourcesPath, "java", "win32-x64", "runtime", "bin", "java.exe");
+
+  if (existsSync(javaExe)) {
+    return javaExe;
+  }
+
+  return null;
+}
+
+/**
  * Resolve and validate Java at startup.
  *
- * Resolution order:
- * 1) Explicit `MINEANVIL_JAVA_PATH`
- * 2) PATH lookup only if `MINEANVIL_ALLOW_PATH_JAVA=1`
+ * Resolution order (Stop Point 1.6):
+ * 1) Bundled runtime (if packaged)
+ * 2) Explicit `MINEANVIL_JAVA_PATH`
+ * 3) PATH lookup only if `MINEANVIL_ALLOW_PATH_JAVA=1`
  */
 export async function resolveAndValidateJavaAtStartup(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<JavaStartupValidation> {
+  // 1) Try bundled runtime first (SP1.6 - Portable Builds)
+  const bundled = resolveBundledJava();
+  if (bundled) {
+    try {
+      const out = await runJavaVersion(bundled);
+      const major = parseJavaMajor(out);
+      if (major === null) {
+        return {
+          ok: false,
+          message: "MineAnvil is missing a required component (Java). Please reinstall MineAnvil.",
+        };
+      }
+      if (major < 17) {
+        return {
+          ok: false,
+          message: `MineAnvil's Java runtime is outdated (Java ${major}). Please reinstall MineAnvil.`,
+        };
+      }
+      return { ok: true, source: "bundled", javaVersionMajor: major, javaVersionRaw: truncate(out) };
+    } catch (e) {
+      return {
+        ok: false,
+        message: "MineAnvil is missing a required component (Java). Please reinstall MineAnvil.",
+      };
+    }
+  }
+
+  // 2) Try explicit MINEANVIL_JAVA_PATH (developer/advanced use)
   const explicit = (env.MINEANVIL_JAVA_PATH ?? "").trim();
   if (explicit) {
     if (!existsSync(explicit)) {
       return {
         ok: false,
         message:
-          "Java is not available. MINEANVIL_JAVA_PATH is set but does not point to an existing Java executable.",
+          "MineAnvil requires Java 17 or newer. Please install Java from java.com or reinstall MineAnvil.",
       };
     }
 
@@ -141,30 +203,30 @@ export async function resolveAndValidateJavaAtStartup(
         return {
           ok: false,
           message:
-            "Java is not available. MineAnvil could not detect the Java version from MINEANVIL_JAVA_PATH.",
+            "MineAnvil requires Java 17 or newer. Please install Java from java.com or reinstall MineAnvil.",
         };
       }
       if (major < 17) {
         return {
           ok: false,
-          message: `Java ${major} is installed, but MineAnvil requires Java 17 or newer.`,
+          message: `Java ${major} is installed, but MineAnvil requires Java 17 or newer. Please update Java from java.com.`,
         };
       }
       return { ok: true, source: "env", javaVersionMajor: major, javaVersionRaw: truncate(out) };
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
       return {
         ok: false,
-        message: `Java is not available. Failed to run Java from MINEANVIL_JAVA_PATH: ${msg}`,
+        message: "MineAnvil requires Java 17 or newer. Please install Java from java.com or reinstall MineAnvil.",
       };
     }
   }
 
+  // 3) Try PATH (only if MINEANVIL_ALLOW_PATH_JAVA=1, for development)
   if (env.MINEANVIL_ALLOW_PATH_JAVA !== "1") {
     return {
       ok: false,
       message:
-        "Java is required but not configured. Set MINEANVIL_JAVA_PATH to a Java 17+ executable. (For development only, you may set MINEANVIL_ALLOW_PATH_JAVA=1 to use a Java found on PATH.)",
+        "MineAnvil requires Java 17 or newer. Please install Java from java.com or reinstall MineAnvil.",
     };
   }
 
@@ -174,7 +236,7 @@ export async function resolveAndValidateJavaAtStartup(
     return {
       ok: false,
       message:
-        "Java is required but was not found. Set MINEANVIL_JAVA_PATH to a Java 17+ executable. (Development only: MINEANVIL_ALLOW_PATH_JAVA=1 allows PATH lookup.)",
+        "MineAnvil requires Java 17 or newer. Please install Java from java.com or reinstall MineAnvil.",
     };
   }
 
@@ -185,21 +247,20 @@ export async function resolveAndValidateJavaAtStartup(
       return {
         ok: false,
         message:
-          "Java is required but MineAnvil could not detect the Java version from the Java found on PATH. Set MINEANVIL_JAVA_PATH explicitly.",
+          "MineAnvil requires Java 17 or newer. Please install Java from java.com or reinstall MineAnvil.",
       };
     }
     if (major < 17) {
       return {
         ok: false,
-        message: `Java ${major} is installed, but MineAnvil requires Java 17 or newer. Set MINEANVIL_JAVA_PATH to a compatible Java.`,
+        message: `Java ${major} is installed, but MineAnvil requires Java 17 or newer. Please update Java from java.com.`,
       };
     }
     return { ok: true, source: "path", javaVersionMajor: major, javaVersionRaw: truncate(out) };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
     return {
       ok: false,
-      message: `Java is required but failed to run the Java found on PATH. Set MINEANVIL_JAVA_PATH explicitly. Details: ${msg}`,
+      message: "MineAnvil requires Java 17 or newer. Please install Java from java.com or reinstall MineAnvil.",
     };
   }
 }
