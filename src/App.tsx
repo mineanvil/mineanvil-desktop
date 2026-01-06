@@ -51,6 +51,11 @@ function App() {
   const [launchVanillaCanRetry, setLaunchVanillaCanRetry] = useState<boolean>(true)
   const [isLaunchingVanilla, setIsLaunchingVanilla] = useState<boolean>(false)
   const [showRightPanel, setShowRightPanel] = useState<boolean>(false)
+  const [minecraftLauncherInstalled, setMinecraftLauncherInstalled] = useState<boolean | null>(null)
+  const [isCheckingLauncher, setIsCheckingLauncher] = useState<boolean>(false)
+  const [isInstallingLauncher, setIsInstallingLauncher] = useState<boolean>(false)
+  const [installProgress, setInstallProgress] = useState<{ state: string; message: string; error?: string } | null>(null)
+  const [showMsiDialog, setShowMsiDialog] = useState<boolean>(false)
 
   const api = useMemo(() => getMineAnvilApi(), [])
   const logger = useMemo(() => getRendererLogger('ui'), [])
@@ -81,6 +86,45 @@ function App() {
   useEffect(() => {
     void fetchStatus('initial')
   }, [fetchStatus])
+
+  // Check for Minecraft Launcher on mount
+  const checkMinecraftLauncher = useCallback(async () => {
+    if (!api.checkMinecraftLauncher) return
+    setIsCheckingLauncher(true)
+    try {
+      const result = await api.checkMinecraftLauncher()
+      if (result.ok) {
+        setMinecraftLauncherInstalled(result.installed)
+      }
+    } catch (err) {
+      logger.info('checkMinecraftLauncher failed', { error: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setIsCheckingLauncher(false)
+    }
+  }, [api, logger])
+
+  useEffect(() => {
+    void checkMinecraftLauncher()
+  }, [checkMinecraftLauncher])
+
+  // Set up progress listener
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).mineanvilInstallProgress) {
+      const progressApi = (window as any).mineanvilInstallProgress
+      progressApi.onProgress((progress: { state: string; message: string; error?: string }) => {
+        setInstallProgress(progress)
+        if (progress.state === 'complete' || progress.state === 'error') {
+          setIsInstallingLauncher(false)
+          if (progress.state === 'complete') {
+            void checkMinecraftLauncher()
+          }
+        }
+      })
+      return () => {
+        progressApi.removeAllListeners()
+      }
+    }
+  }, [checkMinecraftLauncher])
 
   // Focus trap for modal
   useEffect(() => {
@@ -238,6 +282,207 @@ function App() {
             )}
           </div>
         </section>
+
+        {/* Minecraft Launcher Installation (SP1.5) */}
+        {minecraftLauncherInstalled === false && (
+          <section className="info-card example-card example-card-compact" style={{ marginBottom: '1rem' }}>
+            <div className="info-card-header-compact">
+              <h2 className="info-card-title info-card-title-compact">Minecraft Launcher</h2>
+            </div>
+            <div className="status-content">
+              <p className="status-description" style={{ marginBottom: '1rem' }}>
+                Minecraft Launcher is not installed. MineAnvil can help you install it using the official Microsoft installer.
+              </p>
+              {installProgress && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <p style={{ marginBottom: '0.5rem', fontWeight: '500' }}>{installProgress.message}</p>
+                  {installProgress.error && (
+                    <p style={{ color: 'rgba(255, 100, 100, 0.9)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                      {installProgress.error}
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="launch-actions">
+                <button
+                  className="button-primary button-large"
+                  onClick={async () => {
+                    if (!api.installMinecraftLauncher) return
+                    setIsInstallingLauncher(true)
+                    setInstallProgress({ state: 'preparing', message: 'Preparing installation...' })
+                    try {
+                      const result = await api.installMinecraftLauncher()
+                      if (!result.ok) {
+                        // Handle "still waiting" state (Store polling timeout)
+                        if (result.stillWaiting) {
+                          setInstallProgress({
+                            state: 'verifying',
+                            message: 'Still waiting for installation to complete...',
+                            error: result.error,
+                          })
+                          // Don't set isInstallingLauncher to false - keep showing progress
+                        } else {
+                          setInstallProgress({
+                            state: 'error',
+                            message: 'Installation failed',
+                            error: result.error || result.failure?.userMessage || 'Unknown error',
+                          })
+                          setIsInstallingLauncher(false)
+                        }
+                      } else {
+                        // Success - progress callback will handle completion
+                        setIsInstallingLauncher(false)
+                      }
+                    } catch (err) {
+                      const msg = err instanceof Error ? err.message : String(err)
+                      setInstallProgress({ state: 'error', message: 'Installation failed', error: msg })
+                      logger.info('installMinecraftLauncher failed', { error: msg })
+                    } finally {
+                      setIsInstallingLauncher(false)
+                    }
+                  }}
+                  disabled={isInstallingLauncher || isCheckingLauncher}
+                >
+                  {isInstallingLauncher ? 'Installing...' : 'Install Minecraft'}
+                </button>
+                {isInstallingLauncher && installProgress && installProgress.state !== 'complete' && installProgress.state !== 'error' && (
+                  <button
+                    className="button-secondary button-small"
+                    style={{ marginLeft: '0.5rem' }}
+                    onClick={async () => {
+                      if (api.cancelMinecraftLauncherInstall) {
+                        await api.cancelMinecraftLauncherInstall()
+                        setIsInstallingLauncher(false)
+                        setInstallProgress(null)
+                      }
+                    }}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+              {installProgress?.state === 'verifying' && installProgress.message.includes('Still waiting') && (
+                <div style={{ marginTop: '1rem' }}>
+                  <button
+                    className="button-secondary button-small"
+                    onClick={async () => {
+                      if (!api.checkMinecraftLauncher) return
+                      setIsCheckingLauncher(true)
+                      try {
+                        const result = await api.checkMinecraftLauncher()
+                        if (result.ok && result.installed) {
+                          setMinecraftLauncherInstalled(true)
+                          setInstallProgress({ state: 'complete', message: 'Minecraft Launcher installed successfully' })
+                          setIsInstallingLauncher(false)
+                        }
+                      } catch (err) {
+                        logger.info('recheck launcher failed', { error: err instanceof Error ? err.message : String(err) })
+                      } finally {
+                        setIsCheckingLauncher(false)
+                      }
+                    }}
+                    disabled={isCheckingLauncher}
+                  >
+                    {isCheckingLauncher ? 'Checking...' : 'Recheck now'}
+                  </button>
+                </div>
+              )}
+              {installProgress?.state === 'error' && (
+                <div style={{ marginTop: '1rem' }}>
+                  <button
+                    type="button"
+                    className="explanation-toggle explanation-toggle-compact"
+                    onClick={() => setShowMsiDialog(true)}
+                  >
+                    Having trouble installing?
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* MSI Dialog - Advanced (Manual) */}
+        {showMsiDialog && (
+          <div className="modal-overlay">
+            <div className="modal-dialog" role="dialog" aria-labelledby="msi-modal-title" aria-modal="true">
+              <h2 id="msi-modal-title" className="modal-title">Advanced: Use Local Installer</h2>
+              <div className="modal-content">
+                <p className="modal-text">
+                  This is an advanced option for restricted PCs. The installer may not update automatically, and you will still need to sign in to Microsoft after installation.
+                </p>
+                <p className="modal-text" style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+                  You will need to select the official Minecraft Launcher installer file from your computer. MineAnvil will verify and run it for you.
+                </p>
+                <p className="modal-text" style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.6)', fontStyle: 'italic' }}>
+                  This is a manual process and requires you to have the installer file already downloaded.
+                </p>
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => setShowMsiDialog(false)}
+                  autoFocus
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="button-primary"
+                  onClick={async () => {
+                    setShowMsiDialog(false);
+                    
+                    if (!api?.pickLocalInstaller) {
+                      logger.warn('pickLocalInstaller API not available');
+                      return;
+                    }
+
+                    try {
+                      const pickResult = await api.pickLocalInstaller();
+                      
+                      if (!pickResult.ok) {
+                        logger.warn('File picker failed', { error: pickResult.error });
+                        return;
+                      }
+
+                      // User cancelled - return cleanly to idle
+                      if (pickResult.cancelled || !pickResult.filePath) {
+                        return;
+                      }
+
+                      // Start installation with selected file
+                      setIsInstallingLauncher(true);
+                      setInstallProgress({ state: 'preparing', message: 'Preparing installation...' });
+                      
+                      const installResult = await api.installMinecraftLauncher({ msiPath: pickResult.filePath });
+                      
+                      if (!installResult.ok) {
+                        setInstallProgress({
+                          state: 'error',
+                          message: installResult.error || 'Installation failed',
+                          error: installResult.error,
+                        });
+                      }
+                      // Progress updates will come via the progress listener
+                    } catch (err) {
+                      const msg = err instanceof Error ? err.message : String(err);
+                      logger.error('Local installer flow failed', { error: msg });
+                      setIsInstallingLauncher(false);
+                      setInstallProgress({
+                        state: 'error',
+                        message: `Failed to start installation: ${msg}`,
+                        error: msg,
+                      });
+                    }
+                  }}
+                >
+                  Select Installer File
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Curated World Example */}
         <section className="info-card example-card example-card-compact" style={{ marginBottom: '1rem' }}>
@@ -505,11 +750,7 @@ function App() {
                     <strong>Cannot launch</strong> —{' '}
                     {!authStatus?.signedIn
                       ? 'please sign in to verify ownership.'
-                      : ownershipState === 'NOT_OWNED'
-                        ? 'this account does not own Minecraft: Java Edition.'
-                        : ownershipState === 'UNVERIFIED_APP_NOT_APPROVED'
-                          ? 'MineAnvil is not approved for Minecraft services yet, so ownership cannot be verified.'
-                          : 'ownership could not be verified yet (try again later).'}
+                      : 'ownership could not be verified yet (try again later).'}
                   </p>
                 </div>
               ) : (
@@ -861,11 +1102,7 @@ function App() {
                   <strong>Cannot launch</strong> —{' '}
                   {!authStatus?.signedIn
                     ? 'please sign in to verify ownership.'
-                    : ownershipState === 'NOT_OWNED'
-                      ? 'this account does not own Minecraft: Java Edition.'
-                      : ownershipState === 'UNVERIFIED_APP_NOT_APPROVED'
-                        ? 'MineAnvil is not approved for Minecraft services yet, so ownership cannot be verified.'
-                        : 'ownership could not be verified yet (try again later).'}
+                    : 'ownership could not be verified yet (try again later).'}
                 </p>
               </div>
             ) : (

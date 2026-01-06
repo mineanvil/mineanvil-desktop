@@ -1,9 +1,9 @@
 # MineAnvil Guardrails (Authoritative)
 
-This file defines hard constraints for all development work.
+This file defines hard constraints for all development work.  
 Cursor must treat this file as non-negotiable.
 
-If any instruction conflicts with this file, THIS FILE WINS.
+If any instruction conflicts with this file, **THIS FILE WINS**.
 
 ---
 
@@ -76,7 +76,27 @@ If something feels like a shortcut, it probably is.
 
 ---
 
-## 6. Cursor Behaviour Rules
+## 6. Provider Boundary Rule (Future-Proofing Without Scope Creep)
+
+- The orchestration core **must remain game-agnostic internally**
+- Internal boundaries must exist for:
+  - Install
+  - Detect
+  - Launch
+  - Join
+  - Diagnostics / health
+- Minecraft Java is the **only** permitted provider in V1
+
+Explicitly forbidden before Stop Point #1 is complete:
+- Implementing additional game providers (e.g. Roblox)
+- Creating multi-provider UX
+- Abstract “provider frameworks” beyond what is required to avoid hard-coding Minecraft into the core
+
+This rule exists solely to prevent architectural lock-in, **not** to justify speculative work.
+
+---
+
+## 7. Cursor Behaviour Rules
 
 Cursor must:
 - Identify the layer and stop point before proposing work
@@ -93,7 +113,7 @@ Cursor must NOT:
 
 ---
 
-## 7. Product Invariants (Always True)
+## 8. Product Invariants (Always True)
 
 1. Parent-safe, boring, predictable software
 2. Deterministic, reproducible environments

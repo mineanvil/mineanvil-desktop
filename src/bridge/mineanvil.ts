@@ -78,6 +78,25 @@ function createBrowserStub(): BrowserStubApi {
     closeWindow: async () => ({
       ok: false,
     }),
+    checkMinecraftLauncher: async () => ({
+      ok: false,
+      installed: false,
+      error: "checkMinecraftLauncher is only available in Electron on Windows",
+      failure: notElectronFailure("RUNTIME", "checkMinecraftLauncher"),
+    }),
+    installMinecraftLauncher: async () => ({
+      ok: false,
+      error: "installMinecraftLauncher is only available in Electron on Windows",
+      failure: notElectronFailure("RUNTIME", "installMinecraftLauncher"),
+    }),
+    cancelMinecraftLauncherInstall: async () => ({
+      ok: false,
+      error: "cancelMinecraftLauncherInstall is only available in Electron on Windows",
+    }),
+    pickLocalInstaller: async () => ({
+      ok: false,
+      error: "pickLocalInstaller is only available in Electron on Windows",
+    }),
     // Dev-only escape hatch for browser mode. Not part of the public API contract.
     __dev: {
       setAuthStatus: (status: AuthStatus) => {

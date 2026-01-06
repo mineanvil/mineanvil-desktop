@@ -6,6 +6,8 @@
  */
 
 import { dialog, ipcMain, BrowserWindow } from "electron";
+import { isMinecraftLauncherInstalled } from "./installer/minecraftLauncherDetection";
+import { installMinecraftLauncher, type InstallProgress } from "./installer/minecraftLauncherInstaller";
 import { createWriteStream, type WriteStream } from "node:fs";
 import * as path from "node:path";
 import {
@@ -1006,6 +1008,121 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
       return { ok: true } as const;
     }
     return { ok: false } as const;
+  });
+
+  // SP1.5: Minecraft Launcher installation handlers
+  let installCancelRequested = false;
+  let currentInstallProcess: { cancel: () => void } | null = null;
+
+  ipcMain.handle(IPC_CHANNELS.checkMinecraftLauncher, async () => {
+    try {
+      const installed = await isMinecraftLauncherInstalled();
+      return { ok: true, installed } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const failure = makeFailure({
+        category: "RUNTIME",
+        kind: "TEMPORARY",
+        canRetry: true,
+        userMessage: `Could not check for Minecraft Launcher: ${msg}`,
+      });
+      return { ok: false, installed: false, error: msg, failure } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.installMinecraftLauncher, async (_evt, options?: { preferStore?: boolean; msiPath?: string }) => {
+    installCancelRequested = false;
+    const window = mainWindow || BrowserWindow.getAllWindows()[0];
+    if (!window || window.isDestroyed()) {
+      return { ok: false, error: "Main window not available" } as const;
+    }
+
+    try {
+      const result = await installMinecraftLauncher(
+        (progress: InstallProgress) => {
+          // Send progress updates to renderer via IPC event
+          if (window && !window.isDestroyed() && window.webContents) {
+            window.webContents.send("mineanvil:installProgress", progress);
+          }
+        },
+        options,
+      );
+
+      if (installCancelRequested) {
+        return { ok: false, error: "Installation was cancelled" } as const;
+      }
+
+      if (result.ok) {
+        return { ok: true, usedMethod: result.usedMethod } as const;
+      } else {
+        // If stillWaiting, return clean result without error/failure
+        if (result.stillWaiting) {
+          return { ok: false, usedMethod: result.usedMethod, stillWaiting: true } as const;
+        }
+        const failure = makeFailure({
+          category: "RUNTIME",
+          kind: "TEMPORARY",
+          canRetry: true,
+          userMessage: result.error || "Installation failed",
+        });
+        return { ok: false, error: result.error, failure, usedMethod: result.usedMethod } as const;
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const failure = makeFailure({
+        category: "RUNTIME",
+        kind: "TEMPORARY",
+        canRetry: true,
+        userMessage: `Installation failed: ${msg}`,
+      });
+      return { ok: false, error: msg, failure } as const;
+    } finally {
+      currentInstallProcess = null;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.cancelMinecraftLauncherInstall, async () => {
+    installCancelRequested = true;
+    // Note: Actual cancellation depends on the installer implementation
+    // For now, we set a flag that the installer can check
+    if (currentInstallProcess) {
+      currentInstallProcess.cancel();
+    }
+    return { ok: true } as const;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.pickLocalInstaller, async () => {
+    const window = mainWindow || BrowserWindow.getAllWindows()[0];
+    if (!window || window.isDestroyed()) {
+      return { ok: false, error: "Main window not available" } as const;
+    }
+
+    try {
+      const result = await dialog.showOpenDialog(window, {
+        title: "Select a Minecraft installer",
+        buttonLabel: "Use this installer",
+        filters: [
+          { name: "Installer Files", extensions: ["exe", "msi"] },
+          { name: "All Files", extensions: ["*"] },
+        ],
+        properties: ["openFile"],
+      });
+
+      if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+        // User cancelled - return cleanly with no error
+        return { ok: true, cancelled: true } as const;
+      }
+
+      const filePath = result.filePaths[0];
+      if (!filePath) {
+        return { ok: true, cancelled: true } as const;
+      }
+
+      return { ok: true, filePath } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: msg } as const;
+    }
   });
 }
 

@@ -25,6 +25,10 @@ export const IPC_CHANNELS = {
   getLaunchCommand: "mineanvil:getLaunchCommand",
   launchVanilla: "mineanvil:launchVanilla",
   closeWindow: "mineanvil:closeWindow",
+  checkMinecraftLauncher: "mineanvil:checkMinecraftLauncher",
+  installMinecraftLauncher: "mineanvil:installMinecraftLauncher",
+  cancelMinecraftLauncherInstall: "mineanvil:cancelMinecraftLauncherInstall",
+  pickLocalInstaller: "mineanvil:pickLocalInstaller",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -150,6 +154,41 @@ export interface CloseWindowResult {
   readonly ok: boolean;
 }
 
+export type MinecraftLauncherInstallProgressState = "preparing" | "downloading" | "installing" | "verifying" | "complete" | "error";
+
+export interface MinecraftLauncherInstallProgress {
+  readonly state: MinecraftLauncherInstallProgressState;
+  readonly message: string;
+  readonly error?: string;
+}
+
+export interface CheckMinecraftLauncherResult {
+  readonly ok: boolean;
+  readonly installed: boolean;
+  readonly error?: string;
+  readonly failure?: FailureInfo;
+}
+
+export interface InstallMinecraftLauncherResult {
+  readonly ok: boolean;
+  readonly error?: string;
+  readonly failure?: FailureInfo;
+  readonly usedMethod?: "winget" | "official" | "store" | "msi";
+  readonly stillWaiting?: boolean;
+}
+
+export interface CancelMinecraftLauncherInstallResult {
+  readonly ok: boolean;
+  readonly error?: string;
+}
+
+export interface PickLocalInstallerResult {
+  readonly ok: boolean;
+  readonly filePath?: string;
+  readonly cancelled?: boolean;
+  readonly error?: string;
+}
+
 /**
  * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
  * The renderer should never import from `electron` directly.
@@ -196,6 +235,24 @@ export interface MineAnvilApi {
 
   /** Close the main window (Electron/Windows only). */
   closeWindow(): Promise<CloseWindowResult>;
+
+  /** Check if Minecraft Launcher is installed (Electron/Windows only). */
+  checkMinecraftLauncher(): Promise<CheckMinecraftLauncherResult>;
+
+  /**
+   * Install Minecraft Launcher (Electron/Windows only).
+   * Progress updates are sent via progress callback.
+   */
+  installMinecraftLauncher(options?: {
+    preferStore?: boolean;
+    msiPath?: string;
+  }): Promise<InstallMinecraftLauncherResult>;
+
+  /** Cancel ongoing Minecraft Launcher installation (Electron/Windows only). */
+  cancelMinecraftLauncherInstall(): Promise<CancelMinecraftLauncherInstallResult>;
+
+  /** Show file picker for local installer (Electron/Windows only). */
+  pickLocalInstaller(): Promise<PickLocalInstallerResult>;
 }
 
 declare global {

@@ -114,6 +114,100 @@ Evidence / notes:
 
 ---
 
+## Stop Point 1.5 — Official Minecraft Installation Assistant (Parent-Guided)
+
+Definition:
+A single-button, parent-friendly "Install Minecraft" experience that guides parents through installing the official Minecraft Launcher using Microsoft-approved distribution paths. The feature keeps parents inside MineAnvil, shows visible progress, and avoids sending parents to minecraft.net. It uses official Microsoft distribution paths only (WinGet, Microsoft Store, or legacy MSI as fallbacks) and remains fully compliant with Microsoft policies. It does NOT distribute Minecraft binaries, bypass Microsoft account or ownership checks, or introduce child-facing UI.
+
+### Primary Installation Path (WinGet)
+- [ ] WinGet availability is detected
+- [ ] WinGet installation command executes correctly
+- [ ] Progress states are displayed: Preparing, Downloading, Installing, Verifying
+- [ ] Installation success is detected by launcher presence
+- [ ] WinGet errors are handled gracefully with clear messages
+
+### Automatic Fallback (Microsoft Store)
+- [ ] Fallback triggers when WinGet is missing, blocked, or fails
+- [ ] Microsoft Store deep-link opens to official Minecraft Launcher page
+- [ ] "Waiting for install to complete…" message is displayed
+- [ ] System state is polled until launcher is detected
+- [ ] No redirect to minecraft.net occurs
+- [ ] Clear instructions are provided if manual intervention is needed
+
+### Explicit Last-Resort Fallback (MSI)
+- [ ] MSI fallback never defaults (requires explicit confirmation)
+- [ ] MSI fallback never runs silently
+- [ ] Confirmation dialog displays warnings about limitations
+- [ ] Official, unmodified MSI installer is used
+- [ ] Checksum verification is performed before execution
+- [ ] Warnings about limited auto-updates and legacy path are displayed
+- [ ] Parent is reminded that Microsoft sign-in is required after install
+
+### UX Requirements
+- [ ] Single primary button: "Install Minecraft"
+- [ ] Button is visible only when Minecraft is not detected
+- [ ] Button is disabled during installation process
+- [ ] Progress states are displayed in plain language
+- [ ] All copy is calm and parent-safe
+- [ ] No technical jargon in parent-facing copy
+- [ ] No urgency, pressure, or teaching tone
+- [ ] Fallback reasons are clearly explained
+
+### Safety & Compliance
+- [ ] Only official Microsoft distribution paths are used
+- [ ] No Minecraft binaries are distributed by MineAnvil
+- [ ] No Microsoft account or ownership checks are bypassed
+- [ ] All downloads are from official Microsoft sources
+- [ ] All checksums are verified before execution
+- [ ] No silent installations without explicit confirmation
+- [ ] No modifications to official installers
+
+### Parent Control
+- [ ] Installation requires explicit parent confirmation
+- [ ] No auto-installation without consent
+- [ ] No auto-launch after installation
+- [ ] Clear visibility of installation progress
+- [ ] Clear communication of fallback reasons
+- [ ] No hidden or silent operations
+
+### Error Handling
+- [ ] All errors are logged and displayed in plain language
+- [ ] WinGet errors trigger Store fallback
+- [ ] Store errors trigger MSI fallback (with confirmation)
+- [ ] MSI errors display clear failure message
+- [ ] No silent failures or hidden errors
+
+### Technical Constraints
+- [ ] No child-facing UI is introduced
+- [ ] No changes to existing Layer 1 behaviour
+- [ ] Installation detection does not interfere with SP1.1–SP1.3
+- [ ] No routing changes beyond installation flow
+- [ ] All installation logic is isolated and testable
+
+### Explicit Non-Goals (Not Implemented)
+SP1.5 does NOT include:
+- Hosting or redistributing Minecraft installers
+- Bundling Minecraft with MineAnvil
+- Bypassing Microsoft account login
+- Bypassing ownership checks
+- Silently installing legacy `.msi` installers
+- Treating legacy install as equivalent to Store install
+- Introducing child-facing UI
+- Auto-launching Minecraft without parent intent
+- Redirecting parents to minecraft.net
+- Using unofficial or third-party installers
+- Modifying or patching Minecraft installers
+- Skipping Microsoft sign-in requirements
+- Installing Minecraft without explicit parent confirmation
+
+Evidence / notes:
+- [ ] Planning document: `prompts/01-execution/L1/SP1.5/01-sp1.5-definition.md`
+- [ ] Implementation evidence (when complete)
+
+**Current Status**: ⏳ **SP1.5 is PLANNED** (not yet implemented).
+
+---
+
 ## Layer 1 Completion Criteria
 
 Layer 1 is complete ONLY when:

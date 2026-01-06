@@ -14,7 +14,7 @@
  */
 
 import { contextBridge, ipcRenderer } from "electron";
-import { IPC_CHANNELS, type MineAnvilApi } from "../shared/ipc-types";
+import { IPC_CHANNELS, type MineAnvilApi, type MinecraftLauncherInstallProgress } from "../shared/ipc-types";
 
 const api: MineAnvilApi = {
   ping: async () => ipcRenderer.invoke(IPC_CHANNELS.ping),
@@ -29,8 +29,25 @@ const api: MineAnvilApi = {
   getLaunchCommand: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.getLaunchCommand, version),
   launchVanilla: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.launchVanilla, version),
   closeWindow: async () => ipcRenderer.invoke(IPC_CHANNELS.closeWindow),
+  checkMinecraftLauncher: async () => ipcRenderer.invoke(IPC_CHANNELS.checkMinecraftLauncher),
+  installMinecraftLauncher: async (options?: { preferStore?: boolean; msiPath?: string }) =>
+    ipcRenderer.invoke(IPC_CHANNELS.installMinecraftLauncher, options),
+  cancelMinecraftLauncherInstall: async () => ipcRenderer.invoke(IPC_CHANNELS.cancelMinecraftLauncherInstall),
+  pickLocalInstaller: async () => ipcRenderer.invoke(IPC_CHANNELS.pickLocalInstaller),
 };
 
 contextBridge.exposeInMainWorld("mineanvil", api);
+
+// Expose progress event listener helper
+contextBridge.exposeInMainWorld("mineanvilInstallProgress", {
+  onProgress: (callback: (progress: MinecraftLauncherInstallProgress) => void) => {
+    ipcRenderer.on("mineanvil:installProgress", (_event, progress: MinecraftLauncherInstallProgress) => {
+      callback(progress);
+    });
+  },
+  removeAllListeners: () => {
+    ipcRenderer.removeAllListeners("mineanvil:installProgress");
+  },
+});
 
 

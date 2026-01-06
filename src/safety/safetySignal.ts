@@ -1,4 +1,4 @@
-import type { AuthStatus, OwnershipState } from '../../electron/src/shared/ipc-types'
+import type { OwnershipState } from '../../electron/src/shared/ipc-types'
 
 export type SafetySignal = 'normal' | 'attention' | 'unsupported'
 
