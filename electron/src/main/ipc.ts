@@ -5,7 +5,7 @@
  * - This file imports `electron` and must only be executed in Electron main.
  */
 
-import { dialog, ipcMain, BrowserWindow } from "electron";
+import { dialog, ipcMain, BrowserWindow, shell } from "electron";
 import { isMinecraftLauncherInstalled } from "./installer/minecraftLauncherDetection";
 import { installMinecraftLauncher, type InstallProgress } from "./installer/minecraftLauncherInstaller";
 import { createWriteStream, type WriteStream } from "node:fs";
@@ -1053,7 +1053,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
       }
 
       if (result.ok) {
-        return { ok: true, usedMethod: result.usedMethod } as const;
+        return { ok: true, usedMethod: result.usedMethod, installerPath: result.installerPath } as const;
       } else {
         // If stillWaiting, return clean result without error/failure
         if (result.stillWaiting) {
@@ -1122,6 +1122,30 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return { ok: false, error: msg } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.openInstaller, async (_evt, installerPath: string) => {
+    try {
+      const errorMessage = await shell.openPath(installerPath);
+      if (errorMessage) {
+        // openPath returns non-empty string on error
+        return { ok: false, error: `Could not open installer: ${errorMessage}` } as const;
+      }
+      return { ok: true } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: `Could not open installer: ${msg}` } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.showInstallerInFolder, async (_evt, installerPath: string) => {
+    try {
+      shell.showItemInFolder(installerPath);
+      return { ok: true } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: `Could not show installer in folder: ${msg}` } as const;
     }
   });
 }

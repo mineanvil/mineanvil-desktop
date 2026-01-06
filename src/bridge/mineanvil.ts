@@ -97,6 +97,14 @@ function createBrowserStub(): BrowserStubApi {
       ok: false,
       error: "pickLocalInstaller is only available in Electron on Windows",
     }),
+    openInstaller: async () => ({
+      ok: false,
+      error: "openInstaller is only available in Electron on Windows",
+    }),
+    showInstallerInFolder: async () => ({
+      ok: false,
+      error: "showInstallerInFolder is only available in Electron on Windows",
+    }),
     // Dev-only escape hatch for browser mode. Not part of the public API contract.
     __dev: {
       setAuthStatus: (status: AuthStatus) => {

@@ -34,6 +34,8 @@ const api: MineAnvilApi = {
     ipcRenderer.invoke(IPC_CHANNELS.installMinecraftLauncher, options),
   cancelMinecraftLauncherInstall: async () => ipcRenderer.invoke(IPC_CHANNELS.cancelMinecraftLauncherInstall),
   pickLocalInstaller: async () => ipcRenderer.invoke(IPC_CHANNELS.pickLocalInstaller),
+  openInstaller: async (installerPath: string) => ipcRenderer.invoke(IPC_CHANNELS.openInstaller, installerPath),
+  showInstallerInFolder: async (installerPath: string) => ipcRenderer.invoke(IPC_CHANNELS.showInstallerInFolder, installerPath),
 };
 
 contextBridge.exposeInMainWorld("mineanvil", api);

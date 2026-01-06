@@ -56,6 +56,7 @@ function App() {
   const [isCheckingLauncher, setIsCheckingLauncher] = useState<boolean>(false)
   const [isInstallingLauncher, setIsInstallingLauncher] = useState<boolean>(false)
   const [installProgress, setInstallProgress] = useState<{ state: string; message: string; error?: string } | null>(null)
+  const [installerPath, setInstallerPath] = useState<string | null>(null)
   const [showMsiDialog, setShowMsiDialog] = useState<boolean>(false)
 
   const api = useMemo(() => getMineAnvilApi(), [])
@@ -331,7 +332,10 @@ function App() {
                           setIsInstallingLauncher(false)
                         }
                       } else {
-                        // Success - progress callback will handle completion
+                        // Success - capture installer path if provided (SP1.5: official download)
+                        if (result.installerPath) {
+                          setInstallerPath(result.installerPath)
+                        }
                         setIsInstallingLauncher(false)
                       }
                     } catch (err) {
@@ -386,6 +390,63 @@ function App() {
                   >
                     {isCheckingLauncher ? 'Checking...' : 'Recheck now'}
                   </button>
+                </div>
+              )}
+              {installProgress?.state === 'complete' && installerPath && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div className="launch-actions" style={{ gap: '0.5rem' }}>
+                    <button
+                      className="button-primary button-large"
+                      onClick={async () => {
+                        if (!api.openInstaller) return
+                        try {
+                          const result = await api.openInstaller(installerPath)
+                          if (!result.ok) {
+                            logger.info('openInstaller failed', { error: result.error })
+                            setInstallProgress({
+                              state: 'error',
+                              message: 'Could not open installer',
+                              error: result.error || 'Unknown error',
+                            })
+                          }
+                        } catch (err) {
+                          const msg = err instanceof Error ? err.message : String(err)
+                          logger.info('openInstaller exception', { error: msg })
+                          setInstallProgress({
+                            state: 'error',
+                            message: 'Could not open installer',
+                            error: msg,
+                          })
+                        }
+                      }}
+                    >
+                      Open installer
+                    </button>
+                    <button
+                      className="button-secondary button-large"
+                      onClick={async () => {
+                        if (!api.showInstallerInFolder) return
+                        try {
+                          const result = await api.showInstallerInFolder(installerPath)
+                          if (!result.ok) {
+                            logger.info('showInstallerInFolder failed', { error: result.error })
+                          }
+                        } catch (err) {
+                          const msg = err instanceof Error ? err.message : String(err)
+                          logger.info('showInstallerInFolder exception', { error: msg })
+                        }
+                      }}
+                    >
+                      Show in folder
+                    </button>
+                  </div>
+                  <details style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: '500' }}>Need help?</summary>
+                    <p style={{ marginTop: '0.5rem', marginLeft: '1rem', lineHeight: '1.5' }}>
+                      Windows will guide you through the Minecraft Launcher installation steps.
+                      Once installed, come back here to continue setting up your Minecraft world.
+                    </p>
+                  </details>
                 </div>
               )}
               {installProgress?.state === 'error' && (

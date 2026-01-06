@@ -29,6 +29,8 @@ export const IPC_CHANNELS = {
   installMinecraftLauncher: "mineanvil:installMinecraftLauncher",
   cancelMinecraftLauncherInstall: "mineanvil:cancelMinecraftLauncherInstall",
   pickLocalInstaller: "mineanvil:pickLocalInstaller",
+  openInstaller: "mineanvil:openInstaller",
+  showInstallerInFolder: "mineanvil:showInstallerInFolder",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -175,6 +177,7 @@ export interface InstallMinecraftLauncherResult {
   readonly failure?: FailureInfo;
   readonly usedMethod?: "winget" | "official" | "store" | "msi";
   readonly stillWaiting?: boolean;
+  readonly installerPath?: string;
 }
 
 export interface CancelMinecraftLauncherInstallResult {
@@ -186,6 +189,16 @@ export interface PickLocalInstallerResult {
   readonly ok: boolean;
   readonly filePath?: string;
   readonly cancelled?: boolean;
+  readonly error?: string;
+}
+
+export interface OpenInstallerResult {
+  readonly ok: boolean;
+  readonly error?: string;
+}
+
+export interface ShowInstallerInFolderResult {
+  readonly ok: boolean;
   readonly error?: string;
 }
 
@@ -253,6 +266,12 @@ export interface MineAnvilApi {
 
   /** Show file picker for local installer (Electron/Windows only). */
   pickLocalInstaller(): Promise<PickLocalInstallerResult>;
+
+  /** Open downloaded installer with default application (Electron/Windows only). */
+  openInstaller(installerPath: string): Promise<OpenInstallerResult>;
+
+  /** Show downloaded installer file in Explorer (Electron/Windows only). */
+  showInstallerInFolder(installerPath: string): Promise<ShowInstallerInFolderResult>;
 }
 
 declare global {

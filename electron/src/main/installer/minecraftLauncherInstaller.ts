@@ -263,27 +263,20 @@ export async function installDownloadedInstaller(
 
 /**
  * Install via official installer download (aka.ms).
+ * Returns installer path for parent-guided installation (SP1.5).
  */
 export async function installViaOfficialDownload(
   onProgress: InstallProgressCallback,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; installerPath?: string }> {
   const downloadResult = await downloadOfficialInstaller(onProgress);
   if (!downloadResult.ok || !downloadResult.installerPath) {
     return { ok: false, error: downloadResult.error };
   }
 
-  const installResult = await installDownloadedInstaller(downloadResult.installerPath, onProgress);
-
-  // Cleanup temp file on failure
-  if (!installResult.ok) {
-    try {
-      await fs.rm(downloadResult.installerPath, { force: true });
-    } catch {
-      // Best-effort cleanup
-    }
-  }
-
-  return installResult;
+  // SP1.5: Return installer path for parent-guided installation
+  // Do NOT auto-open the installer - let parent click "Open installer" button
+  onProgress({ state: "complete", message: "Minecraft installer downloaded" });
+  return { ok: true, installerPath: downloadResult.installerPath };
 }
 
 /**
@@ -464,7 +457,7 @@ export async function installMinecraftLauncher(
     preferStore?: boolean;
     msiPath?: string;
   },
-): Promise<{ ok: boolean; error?: string; usedMethod?: "winget" | "official" | "store" | "msi"; stillWaiting?: boolean }> {
+): Promise<{ ok: boolean; error?: string; usedMethod?: "winget" | "official" | "store" | "msi"; stillWaiting?: boolean; installerPath?: string }> {
   // If local installer path is provided, use it directly (explicit parent choice - advanced/manual)
   if (options?.msiPath) {
     const result = await installViaLocalInstaller(options.msiPath, onProgress);
