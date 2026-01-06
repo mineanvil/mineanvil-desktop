@@ -10,8 +10,7 @@
  */
 
 import * as path from "node:path";
-
-const PLACEHOLDER_MS_CLIENT_ID = "YOUR_MICROSOFT_PUBLIC_CLIENT_ID";
+import { getMsClientId } from "../shared/msAuthConfig";
 
 let envLoaded = false;
 
@@ -40,18 +39,6 @@ export function loadEnvOnce(): void {
   } catch {
     // Ignore failures; dev may still provide env vars via shell.
   }
-}
-
-export function getMsClientId(): string {
-  loadEnvOnce();
-
-  const raw = (process.env.MS_CLIENT_ID ?? "").trim();
-  if (!raw || raw === PLACEHOLDER_MS_CLIENT_ID) {
-    throw new Error(
-      "Microsoft Client ID not configured. Set MS_CLIENT_ID in .env (dev) or environment.",
-    );
-  }
-  return raw;
 }
 
 export function validateRequiredConfig(): { ok: true } | { ok: false; message: string } {

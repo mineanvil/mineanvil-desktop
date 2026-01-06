@@ -11,3 +11,5 @@ release/
 .env.*.local
 !.env.example
 .DS_Store
+electron/src/shared/generated/
+.claude

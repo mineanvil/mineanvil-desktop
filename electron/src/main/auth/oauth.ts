@@ -18,7 +18,7 @@ import * as https from "node:https";
 import { URL } from "node:url";
 import { isVerboseEnabled, type Logger, createLogger, type LogEntry } from "../../shared/logging";
 import { saveTokens, type StoredTokens } from "./tokenStore";
-import { getMsClientId } from "../config";
+import { getMsClientId } from "../../shared/msAuthConfig";
 import { REDIRECT_URI, startOAuthCallbackListener } from "./loopback";
 
 export interface AuthResult {

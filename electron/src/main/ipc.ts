@@ -31,7 +31,7 @@ import { buildVanillaLaunchCommand, launchVanilla } from "./minecraft/launch";
 import { updateManifestWithMinecraftVersion } from "./pack/packManifestLoader";
 import { loadOrGenerateLockfile } from "./pack/packLockfileLoader";
 import { formatJsonLine, isVerboseEnabled, redactSecrets, type LogEntry } from "../shared/logging";
-import { getMsClientId } from "./config";
+import { getMsClientId } from "../shared/msAuthConfig";
 import { logsDir as getLogsDir } from "./paths";
 
 let rendererLogStream: WriteStream | null = null;
