@@ -28,12 +28,19 @@ try {
 
 const MS_CLIENT_ID = process.env.MS_CLIENT_ID;
 
-if (!MS_CLIENT_ID || MS_CLIENT_ID.trim() === "") {
-  throw new Error("MS_CLIENT_ID missing for build");
-}
-
 const outputDir = path.resolve(process.cwd(), "electron/src/shared/generated");
 const outputFile = path.join(outputDir, "msClientId.ts");
+
+// If MS_CLIENT_ID is not available but the file already exists, skip regeneration
+// This allows packaged builds and local rebuilds to work without MS_CLIENT_ID
+if (!MS_CLIENT_ID || MS_CLIENT_ID.trim() === "") {
+  if (fs.existsSync(outputFile)) {
+    console.log(`⏭️  Skipping generation: ${outputFile} already exists and MS_CLIENT_ID not available`);
+    process.exit(0);
+  } else {
+    throw new Error("MS_CLIENT_ID missing for build");
+  }
+}
 
 // Ensure directory exists
 fs.mkdirSync(outputDir, { recursive: true });
