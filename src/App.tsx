@@ -6,6 +6,7 @@ import { buildDiagnosticsBundle, downloadDiagnosticsJson } from './diagnostics/e
 import { getRendererLogger } from './logging/renderer'
 import { getSafetySignal, type SafetySignal } from './safety/safetySignal'
 import { getEscalationCopy } from './safety/escalationCopy'
+import logoUrl from './assets/logo.png'
 
 type NavSection = 'home' | 'account' | 'minecraft' | 'diagnostics'
 
@@ -1551,7 +1552,7 @@ function App() {
       {/* Left Navigation */}
       <nav className="left-nav">
         <div className="nav-header">
-          <img src="/logo.png" alt="MineAnvil" className="nav-logo" />
+          <img src={logoUrl} alt="MineAnvil" className="nav-logo" />
           <h1 className="nav-title">MineAnvil</h1>
         </div>
         <div className="nav-items">
