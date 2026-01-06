@@ -16,6 +16,11 @@ function App() {
   const [isFetchingStatus, setIsFetchingStatus] = useState<boolean>(false)
   const [explanationExpanded, setExplanationExpanded] = useState<boolean>(false)
   const [escalationExpanded, setEscalationExpanded] = useState<boolean>(false)
+  const [worldExampleExpanded, setWorldExampleExpanded] = useState<boolean>(false)
+  const [seedsExplanationExpanded, setSeedsExplanationExpanded] = useState<boolean>(false)
+  const [createWorldModalSeed, setCreateWorldModalSeed] = useState<{ name: string; seedValue: string } | null>(null)
+  const [showInstructions, setShowInstructions] = useState<boolean>(false)
+  const [instructionsExpanded, setInstructionsExpanded] = useState<boolean>(false)
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false)
   const [signInMessage, setSignInMessage] = useState<string | null>(null)
   const [isSigningOut, setIsSigningOut] = useState<boolean>(false)
@@ -77,6 +82,57 @@ function App() {
     void fetchStatus('initial')
   }, [fetchStatus])
 
+  // Focus trap for modal
+  useEffect(() => {
+    if (createWorldModalSeed) {
+      // Focus the first button (Cancel) when modal opens
+      const modal = document.querySelector('.modal-dialog') as HTMLElement
+      const firstButton = modal?.querySelector('button') as HTMLElement
+      if (firstButton) {
+        firstButton.focus()
+      }
+
+      // Handle Escape key
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setCreateWorldModalSeed(null)
+        }
+      }
+      document.addEventListener('keydown', handleEscape)
+
+      // Trap focus within modal
+      const handleTab = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return
+        const modal = document.querySelector('.modal-dialog') as HTMLElement
+        if (!modal) return
+
+        const focusableElements = modal.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        const firstElement = focusableElements[0] as HTMLElement
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault()
+            lastElement?.focus()
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault()
+            firstElement?.focus()
+          }
+        }
+      }
+      document.addEventListener('keydown', handleTab)
+
+      return () => {
+        document.removeEventListener('keydown', handleEscape)
+        document.removeEventListener('keydown', handleTab)
+      }
+    }
+  }, [createWorldModalSeed])
+
   const isBrowserMode = typeof window !== 'undefined' && !window.mineanvil
   const ownershipState = authStatus?.signedIn ? authStatus.ownershipState : undefined
   const launchBlocked = !authStatus?.signedIn || ownershipState !== 'OWNED'
@@ -112,24 +168,26 @@ function App() {
 
     return (
       <div className="main-content">
-        <div className="content-header">
-          <h1 className="content-title">Minecraft made simple.</h1>
-          <p className="content-subtitle">Set up once. Safe to use every day.</p>
+        <div className="content-header content-header-compact">
+          <h1 className="content-title content-title-compact">Minecraft made simple.</h1>
+          <p className="content-subtitle content-subtitle-compact">Set up once. Safe to use every day.</p>
         </div>
 
         {/* Safety Signal - Environment Status */}
-        <section className={`status-card ${safetySignalClass}`} style={{ marginBottom: '1.5rem' }}>
-          <div className="status-card-header">
-            <h2 className="status-card-title">Environment Status</h2>
+        <section className={`status-strip ${safetySignalClass}`} style={{ marginBottom: '0.75rem' }}>
+          <div className="status-strip-header">
+            <h2 className="status-strip-title">Environment Status</h2>
+            <div className="status-strip-content">
+              <h3 className="safety-signal-title-compact">{safetySignal.title}</h3>
+              <p className="safety-signal-body-compact">{safetySignal.body}</p>
+            </div>
           </div>
-          <div className="status-content">
-            <h3 className="safety-signal-title">{safetySignal.title}</h3>
-            <p className="safety-signal-body">{safetySignal.body}</p>
+          <div className="status-strip-actions">
             {explanationText && (
               <>
                 <button
                   type="button"
-                  className="explanation-toggle"
+                  className="explanation-toggle explanation-toggle-compact"
                   onClick={() => setExplanationExpanded(!explanationExpanded)}
                   aria-expanded={explanationExpanded}
                   aria-controls="safety-signal-explanation"
@@ -140,7 +198,7 @@ function App() {
                   </span>
                 </button>
                 {explanationExpanded && (
-                  <div id="safety-signal-explanation" className="explanation-panel">
+                  <div id="safety-signal-explanation" className="explanation-panel explanation-panel-compact">
                     <p className="explanation-text">{explanationText}</p>
                   </div>
                 )}
@@ -150,7 +208,7 @@ function App() {
               <>
                 <button
                   type="button"
-                  className="explanation-toggle"
+                  className="explanation-toggle explanation-toggle-compact"
                   onClick={() => setEscalationExpanded(!escalationExpanded)}
                   aria-expanded={escalationExpanded}
                   aria-controls="safety-signal-escalation"
@@ -161,7 +219,7 @@ function App() {
                   </span>
                 </button>
                 {escalationExpanded && (
-                  <div id="safety-signal-escalation" className="escalation-panel">
+                  <div id="safety-signal-escalation" className="escalation-panel escalation-panel-compact">
                     <div className="escalation-section">
                       <p className="escalation-label">What happened</p>
                       <p className="escalation-text">{escalationCopy.whatHappened}</p>
@@ -180,6 +238,140 @@ function App() {
             )}
           </div>
         </section>
+
+        {/* Curated World Example */}
+        <section className="info-card example-card example-card-compact" style={{ marginBottom: '1rem' }}>
+          <div className="info-card-header-compact">
+            <h2 className="info-card-title info-card-title-compact">Curated World Example</h2>
+          </div>
+          <div className="world-card-content world-card-content-compact">
+            <h3 className="world-card-name world-card-name-compact">Peaceful Valley</h3>
+            <p className="world-card-description world-card-description-compact">A gentle world designed for exploration and building, with safe terrain and friendly landscapes.</p>
+            <p className="world-card-version world-card-version-compact">Works with Minecraft 1.20 and newer</p>
+            <p className="world-card-tags">Exploration | Family-friendly | Adventure</p>
+          </div>
+          <button
+            type="button"
+            className="explanation-toggle explanation-toggle-compact"
+            onClick={() => setWorldExampleExpanded(!worldExampleExpanded)}
+            aria-expanded={worldExampleExpanded}
+            aria-controls="world-example-explanation"
+          >
+            What is this?
+            <span className="explanation-chevron" aria-hidden="true">
+              {worldExampleExpanded ? '▴' : '▾'}
+            </span>
+          </button>
+          {worldExampleExpanded && (
+            <div id="world-example-explanation" className="explanation-panel explanation-panel-compact">
+              <p className="explanation-text">This is an example only. It shows what curated worlds might look like in the future. It does not install or change anything in Minecraft.</p>
+            </div>
+          )}
+        </section>
+
+        {/* Curated World Seeds */}
+        <section className="info-card example-card example-card-compact" style={{ marginBottom: '1rem' }}>
+          <div className="info-card-header-compact">
+            <h2 className="info-card-title info-card-title-compact">Curated World Seeds</h2>
+          </div>
+          <div className="seeds-list">
+            {[
+              { name: 'Mountain Vista', description: 'A world with beautiful mountain ranges and valleys perfect for building.', seedValue: '1234567890' },
+              { name: 'Coastal Haven', description: 'A peaceful coastal area with gentle beaches and calm waters.', seedValue: '9876543210' },
+              { name: 'Forest Grove', description: 'A dense forest world with plenty of trees and natural resources.', seedValue: '5555555555' },
+              { name: 'Desert Oasis', description: 'A desert landscape with hidden oases and interesting terrain features.', seedValue: '1111111111' },
+              { name: 'Plains Paradise', description: 'Wide open plains ideal for building large structures and farms.', seedValue: '9999999999' },
+            ].map((seed, index) => (
+              <div key={index} className="seed-row">
+                <div className="seed-content">
+                  <span className="seed-name">{seed.name}</span>
+                  <span className="seed-description">{seed.description}</span>
+                </div>
+                <div className="seed-actions">
+                  <span className="seed-value">{seed.seedValue}</span>
+                  <button
+                    type="button"
+                    className="seed-copy-button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(seed.seedValue)
+                      } catch (err) {
+                        // Silently handle clipboard errors
+                      }
+                    }}
+                  >
+                    Copy seed
+                  </button>
+                  <button
+                    type="button"
+                    className="seed-create-button"
+                    onClick={() => {
+                      setCreateWorldModalSeed({ name: seed.name, seedValue: seed.seedValue })
+                    }}
+                  >
+                    Create world
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="explanation-toggle explanation-toggle-compact"
+            onClick={() => setSeedsExplanationExpanded(!seedsExplanationExpanded)}
+            aria-expanded={seedsExplanationExpanded}
+            aria-controls="seeds-explanation"
+          >
+            What are seeds?
+            <span className="explanation-chevron" aria-hidden="true">
+              {seedsExplanationExpanded ? '▴' : '▾'}
+            </span>
+          </button>
+          {seedsExplanationExpanded && (
+            <div id="seeds-explanation" className="explanation-panel explanation-panel-compact">
+              <p className="explanation-text">World seeds are deterministic and safe numbers that describe how Minecraft generates a world. MineAnvil does not create worlds or guarantee outcomes.</p>
+            </div>
+          )}
+        </section>
+
+        {/* Instructions Panel (shown after world creation launch) */}
+        {showInstructions && (
+          <section className="info-card example-card example-card-compact" style={{ marginBottom: '1rem' }}>
+            <div className="info-card-header-compact">
+              <h2 className="info-card-title info-card-title-compact">How to use the seed</h2>
+              <button
+                type="button"
+                className="button-link button-small"
+                onClick={() => setShowInstructions(false)}
+                style={{ marginLeft: 'auto' }}
+              >
+                ✕
+              </button>
+            </div>
+            <button
+              type="button"
+              className="explanation-toggle explanation-toggle-compact"
+              onClick={() => setInstructionsExpanded(!instructionsExpanded)}
+              aria-expanded={instructionsExpanded}
+              aria-controls="world-creation-instructions"
+            >
+              Show instructions
+              <span className="explanation-chevron" aria-hidden="true">
+                {instructionsExpanded ? '▴' : '▾'}
+              </span>
+            </button>
+            {instructionsExpanded && (
+              <div id="world-creation-instructions" className="explanation-panel explanation-panel-compact">
+                <ol className="instructions-list" style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                  <li style={{ marginBottom: '0.5rem' }}>In Minecraft, click "Create New World"</li>
+                  <li style={{ marginBottom: '0.5rem' }}>Click "More World Options"</li>
+                  <li style={{ marginBottom: '0.5rem' }}>Paste the seed value in the "Seed for the World Generator" field</li>
+                  <li>Click "Create New World"</li>
+                </ol>
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="status-grid">
         {/* Account Status */}
@@ -433,6 +625,93 @@ function App() {
           </section>
         ) : null}
       </div>
+
+      {/* Create World Modal */}
+      {createWorldModalSeed && (
+        <div
+          className="modal-overlay"
+        >
+          <div className="modal-dialog" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+            <h2 id="modal-title" className="modal-title">Create New World</h2>
+            <div className="modal-content">
+              <p className="modal-text">
+                MineAnvil will open Minecraft. The seed <strong>{createWorldModalSeed.seedValue}</strong> will be copied to your clipboard. You will create the world inside Minecraft using this seed. MineAnvil will not create or modify any world folders. Existing worlds will not be altered.
+              </p>
+              <div className="modal-details">
+                <p className="modal-detail">
+                  <span className="modal-detail-label">Seed:</span>
+                  <span className="modal-detail-value">{createWorldModalSeed.seedValue}</span>
+                </p>
+                <p className="modal-detail">
+                  <span className="modal-detail-label">Minecraft version:</span>
+                  <span className="modal-detail-value">{vanillaVersion}</span>
+                </p>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => setCreateWorldModalSeed(null)}
+                autoFocus
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button-primary"
+                onClick={async () => {
+                  const seedValue = createWorldModalSeed.seedValue
+                  setCreateWorldModalSeed(null)
+                  
+                  // Copy seed to clipboard (proceed even if this fails)
+                  try {
+                    await navigator.clipboard.writeText(seedValue)
+                  } catch (err) {
+                    logger.info('clipboard copy failed', { error: err instanceof Error ? err.message : String(err) })
+                  }
+
+                  // Launch Minecraft
+                  setIsLaunchingVanilla(true)
+                  setLaunchVanillaError(null)
+                  setLaunchVanillaCanRetry(true)
+                  logger.info('createWorld launch clicked', { seedValue, version: vanillaVersion })
+                  
+                  try {
+                    const res = await api.launchVanilla(vanillaVersion)
+                    if (res.ok) {
+                      setLaunchVanillaJson(JSON.stringify(res, null, 2))
+                      setLaunchVanillaError(null)
+                      setLaunchVanillaCanRetry(true)
+                      setShowInstructions(true)
+                      setInstructionsExpanded(false)
+                      logger.info('createWorld launch success', { ok: true })
+                    } else {
+                      const msg = failureMessage(res, 'Launch failed.')
+                      setLaunchVanillaError(msg)
+                      setLaunchVanillaCanRetry(res.failure?.canRetry ?? true)
+                      logger.info('createWorld launch failure', { ok: false })
+                    }
+                  } catch (err) {
+                    const msg = err instanceof Error ? err.message : String(err)
+                    setLaunchVanillaError(msg)
+                    logger.info('createWorld launch threw', { error: msg })
+                  } finally {
+                    setIsLaunchingVanilla(false)
+                  }
+                }}
+              >
+                Open Minecraft
+              </button>
+            </div>
+            {launchVanillaError && (
+              <div className="modal-error">
+                <p className="error-message">{launchVanillaError}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       </div>
     )
   }

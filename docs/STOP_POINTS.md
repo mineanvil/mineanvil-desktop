@@ -588,12 +588,263 @@ are implemented as read-only, state-driven UI with no technical exposure.
 
 ---
 
-# Layer 4 — Content Expansion (LOCKED)
+# Layer 4 — Content Expansion
 
 Includes:
 - World seeds
 - Curated worlds
 - Character skins
+
+---
+
+## Stop Point 4.1 — Curated World Example
+
+Definition:
+A read-only, visibility-only "Curated World Example" section appears on the Home screen below the Environment Status card. This section displays a single static example world card that demonstrates what a curated world might look like, without any ability to install, download, activate, or use the world. The example is purely informational and explicitly marked as "example only" to prevent any confusion about functionality.
+
+### Section Structure
+- [✓] "Curated World Example" section appears on Home screen below Environment Status
+- [✓] Section contains exactly one static world card (hardcoded, no data fetching)
+- [✓] World card displays: Name, Description, Version compatibility text, up to 3 neutral tags
+- [✓] Explanation is collapsed by default (reuses SP3.3 toggle pattern)
+
+### Read-Only Enforcement
+- [✓] No buttons, links, or interactive elements on the world card
+- [✓] No download, install, activate, or use actions possible
+- [✓] No state mutation occurs when viewing the section
+- [✓] No trust decisions are introduced
+
+### Content Constraints
+- [✓] No seed values displayed
+- [✓] No author names or attribution
+- [✓] No ratings, popularity, or dates
+- [✓] No badges or achievement indicators
+- [✓] No screenshots or images (text-only)
+
+### Explanation Pattern
+- [✓] Explanation explicitly states "example only" and "does not install or change anything"
+- [✓] Explanation uses calm, parent-safe language (maximum two sentences)
+- [✓] Explanation toggle reuses SP3.3 pattern (subtle help link with chevron)
+
+### Technical Constraints
+- [✓] No new backend calls or IPC messages
+- [✓] No new state sources introduced
+- [✓] No changes to existing behaviour
+- [✓] No new components beyond the section itself
+- [✓] No routing changes
+
+### UX Requirements
+- [✓] Copy is calm and parent-safe throughout
+- [✓] No pressure, urgency, or teaching language
+- [✓] No technical jargon
+- [✓] Section is clearly informational only
+
+Evidence / notes:
+- [✓] Planning document: `prompts/01-execution/L4/SP4.1/01-sp4.1-definition.md`
+- [✓] Placement review: `prompts/01-execution/L4/SP4.1/03-sp4.1-placement-review-results.md`
+- [✓] Validation checklist: `prompts/01-execution/L4/SP4.1/04-sp4.1-validation-checklist.md`
+- [✓] Validation run: `prompts/02-evidence/L4/SP4.1/validation-run.md`
+
+**Current Status**: ✅ **SP4.1 is COMPLETE**.
+
+SP4.1 completed on 2026-01-05.
+
+---
+
+## Stop Point 4.2 — Curated World Seeds
+
+Definition:
+A read-only "Curated World Seeds" section appears on the Home screen, allowing parents to view a small, curated list of Minecraft world seeds. Parents can optionally copy a seed value to their clipboard for manual use. The section explains that seeds are deterministic and safe, but does not create worlds, install anything, or modify Minecraft instances.
+
+### Section Structure
+- [✓] "Curated World Seeds" section appears on Home screen below Curated World Example
+- [✓] Section displays a small curated list of seeds (3-5 seeds recommended)
+- [✓] Each seed displays: Name, Description, Seed value
+- [✓] Each seed has a "Copy" button for clipboard copy
+- [✓] Explanation is collapsed by default (reuses SP3.3 toggle pattern)
+
+### Read-Only Enforcement
+- [✓] No install, create, download, or activate actions possible
+- [✓] No state mutation occurs when viewing the section
+- [✓] No file writes to Minecraft directories
+- [✓] No world creation or installation
+- [✓] No trust decisions are introduced beyond copying text
+
+### Copy-to-Clipboard
+- [✓] Each seed has a "Copy" button
+- [✓] Clicking "Copy" copies only the numeric seed value to clipboard
+- [✓] Copy action does not persist state
+- [✓] Copy action does not trigger other behaviour
+- [✓] Copy action does not create or modify files
+
+### Explanation Pattern
+- [✓] Explanation explains what seeds are in plain language
+- [✓] Explanation states seeds are deterministic and safe
+- [✓] Explanation clarifies MineAnvil does not create worlds or guarantee outcomes
+- [✓] Explanation uses calm, parent-safe language (maximum two sentences)
+- [✓] Explanation toggle reuses SP3.3 pattern (subtle help link with chevron)
+
+### Content Constraints
+- [✓] No install or create buttons
+- [✓] No world previews or screenshots
+- [✓] No author names or attribution
+- [✓] No ratings, popularity, or dates
+- [✓] No badges or achievement indicators
+- [✓] No links to external resources
+- [✓] No social sharing buttons
+
+### Technical Constraints
+- [✓] No new backend calls or IPC messages
+- [✓] No new state sources introduced
+- [✓] No changes to existing behaviour
+- [✓] No file writes to Minecraft directories
+- [✓] No world creation or installation logic
+- [✓] No routing changes
+
+### UX Requirements
+- [✓] Copy is calm and parent-safe throughout
+- [✓] No pressure, urgency, or teaching language
+- [✓] No technical jargon (except "seed" if unavoidable)
+- [✓] Section is clearly informational only
+- [✓] No "recommended for your child" language
+- [✓] No excitement language
+
+### Explicit Non-Goals (Not Implemented)
+SP4.2 does NOT include:
+- World creation or installation
+- Automatic world generation
+- File writes to Minecraft directories
+- World switching or activation
+- Child-facing UI
+- Social sharing or distribution
+- Ratings, popularity, or metrics
+- Images or screenshots
+- Server or mod references
+- Marketplace or browsing behaviour
+- Persistence of copied state
+- Confirmation flows or dialogs
+- Parental decisions beyond copying text
+- A "Worlds" menu item
+- Replacement or expansion of SP4.1
+- Any mutation of Minecraft state
+
+Evidence / notes:
+- [✓] Planning document: `prompts/01-execution/L4/SP4.2/01-sp4.2-definition.md`
+- [✓] Validation checklist: `prompts/01-execution/L4/SP4.2/02-sp4.2-validation-checklist.md`
+- [✓] Validation run: `prompts/02-evidence/L4/SP4.2/validation-run.md`
+
+**Current Status**: ✅ **SP4.2 is COMPLETE**.
+
+SP4.2 completed on 2026-01-05.
+
+---
+
+## Stop Point 4.3 — Guided World Creation (Parent-Initiated)
+
+Definition:
+A parent-initiated "Create World" action provides guidance for parents to create a new Minecraft world using a known seed value. The action requires explicit confirmation, clearly states that MineAnvil will open Minecraft (but will not create or modify world folders), and provides instructions for the parent to create the world inside Minecraft using the seed. MineAnvil does not write files to the saves folder, switch worlds, or automate any actions inside Minecraft.
+
+### Action Visibility
+- [✓] "Create World" button appears next to each seed in "Curated World Seeds" section
+- [✓] Button is clearly labeled and visible
+- [✓] Button does not appear on Curated World Example section
+- [✓] Button does not appear in menus or navigation
+
+### Confirmation Flow
+- [✓] Clicking "Create World" opens a confirmation dialog
+- [✓] Dialog blocks interaction until resolved
+- [✓] Dialog displays seed value that will be used
+- [✓] Dialog displays Minecraft version that will be used
+- [✓] Dialog clearly states MineAnvil will open Minecraft
+- [✓] Dialog clearly states MineAnvil will not create or modify world folders
+- [✓] Dialog clearly states parent will create the world inside Minecraft
+- [✓] Dialog clearly states existing worlds will not be altered
+- [✓] Dialog requires explicit confirmation (no auto-confirm)
+- [✓] Dialog provides clear "Cancel" option
+- [✓] Dialog uses calm, parent-safe language
+
+### Post-Confirmation Actions
+- [✓] Confirming copies seed value to clipboard automatically
+- [✓] Confirming launches Minecraft using Layer 1 launch control
+- [✓] Instructions panel appears (non-blocking, dismissible)
+- [✓] Instructions are collapsed by default
+- [✓] Instructions explain where to paste seed in Minecraft
+- [✓] Instructions use calm, parent-safe language
+
+### No Filesystem Writes
+- [✓] No files are written to Minecraft saves directory
+- [✓] No world folders are created
+- [✓] No existing worlds are modified
+- [✓] No partial or corrupted folders are created
+
+### Launch Control
+- [✓] Minecraft launches using managed instance configuration
+- [✓] Launch uses correct Minecraft version
+- [✓] Launch follows Layer 1 safety guarantees
+- [✓] Launch failures are handled gracefully
+
+### Safety Guarantees
+- [✓] Existing worlds are never modified
+- [✓] No filesystem writes to saves directory
+- [✓] No automation inside Minecraft
+- [✓] No auto-switching occurs
+- [✓] No child-facing UI is introduced
+
+### UX Requirements
+- [✓] Copy is calm and parent-safe throughout
+- [✓] No pressure, urgency, or teaching language
+- [✓] No excitement or encouragement language
+- [✓] No "recommended for your child" language
+- [✓] No technical jargon beyond necessary terms
+- [✓] Confirmation is explicit and clear
+- [✓] Instructions are optional (collapsed by default)
+
+### Technical Constraints
+- [✓] Launch uses Layer 1 launch control
+- [✓] Clipboard copy uses standard clipboard API
+- [✓] No filesystem operations to saves directory
+- [✓] No world generation or file creation
+- [✓] No changes to existing world management
+- [✓] No routing changes
+
+### Explicit Non-Goals (Not Implemented)
+SP4.3 does NOT include:
+- Creating or modifying world folders
+- Writing files to the Minecraft saves directory
+- Generating world files programmatically
+- Headless world generation
+- Auto-switching to created worlds
+- Automating actions inside Minecraft
+- Modifying existing worlds
+- World deletion or management
+- World previews or screenshots
+- Multiple world creation in one action
+- Batch operations
+- World templates or presets beyond seed
+- Server or multiplayer world creation
+- Mod or datapack installation
+- Schedules or automation
+- Recommendations for children
+- Browsing or marketplace patterns
+- Child-facing UI
+- World sharing or distribution
+- Undo or rollback of creation
+- World editing or modification
+- Version migration or conversion
+- World backup or restore
+- World import or export
+
+Evidence / notes:
+- [✓] Planning document: `prompts/01-execution/L4/SP4.3/01-sp4.3-definition.md`
+- [✓] Validation checklist: `prompts/01-execution/L4/SP4.3/02-sp4.3-validation-checklist.md`
+- [✓] Validation run: `prompts/02-evidence/L4/SP4.3/validation-run.md`
+
+**Current Status**: ✅ **SP4.3 is COMPLETE**.
+
+SP4.3 completed on 2026-01-05.
+All checklist items verified. Implementation satisfies SP4.3 definition.
+Modal confirmation dialog, clipboard copy, Minecraft launch via Layer 1 control, and instructions panel all implemented.
+No filesystem writes to saves directory. Existing worlds untouched.
 
 ---
 
