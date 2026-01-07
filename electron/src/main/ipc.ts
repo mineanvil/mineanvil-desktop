@@ -8,7 +8,7 @@
 import { dialog, ipcMain, BrowserWindow, shell } from "electron";
 import { isMinecraftLauncherInstalled } from "./installer/minecraftLauncherDetection";
 import { installMinecraftLauncher, type InstallProgress } from "./installer/minecraftLauncherInstaller";
-import { createWriteStream, type WriteStream } from "node:fs";
+import { createWriteStream, existsSync, type WriteStream } from "node:fs";
 import * as path from "node:path";
 import {
   IPC_CHANNELS,
@@ -139,14 +139,17 @@ function runtimeUserMessage(err: unknown): string {
   const m = safe.message.toLowerCase();
 
   // SP1.6: Packaged builds with missing bundled Java (permanent, no retry)
-  // Bundled Java should always be present in packaged builds
-  if (process.resourcesPath) {
-    return [
-      "MineAnvil is missing a required component.",
-      "",
-      "Next steps:",
-      "- Reinstall MineAnvil from the official installer",
-    ].join("\n");
+  // Only show "missing component" if bundled Java actually doesn't exist
+  if (process.resourcesPath && process.platform === "win32") {
+    const bundledJavaPath = path.join(process.resourcesPath, "java", "win32-x64", "runtime", "bin", "java.exe");
+    if (!existsSync(bundledJavaPath)) {
+      return [
+        "MineAnvil is missing a required component.",
+        "",
+        "Next steps:",
+        "- Reinstall MineAnvil from the official installer",
+      ].join("\n");
+    }
   }
 
   // Configuration issues: permanent, no retry
