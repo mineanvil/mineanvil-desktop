@@ -199,3 +199,4 @@ Copy this summary into `docs/SP2.3-rollback-recovery.md` or a dedicated validati
 - `docs/SP2.3-rollback-recovery.md` - Stop Point 2.3 documentation
 
 
+

@@ -128,7 +128,12 @@ export async function buildVanillaLaunchCommand(params: {
     const jvm = versionJson.arguments?.jvm;
     if (!jvm) return [] as string[];
     // Ignore rules for now; treat all as included.
-    return flattenArgs(jvm.map((x) => (typeof x === "string" ? x : { value: x.value as any })));
+    const allArgs = flattenArgs(jvm.map((x) => (typeof x === "string" ? x : { value: x.value as any })));
+    // Filter out macOS-specific options on Windows
+    if (process.platform === "win32") {
+      return allArgs.filter((arg) => arg !== "-XstartOnFirstThread");
+    }
+    return allArgs;
   })();
 
   const gameArgsFromJson = (() => {

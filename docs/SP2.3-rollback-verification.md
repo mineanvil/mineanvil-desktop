@@ -327,3 +327,4 @@ This script:
 **Solution**: Close applications using Minecraft files, retry rollback.
 
 
+

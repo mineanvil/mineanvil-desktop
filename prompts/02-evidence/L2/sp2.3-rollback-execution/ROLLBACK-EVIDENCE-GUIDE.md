@@ -445,3 +445,4 @@ Select-String -Path rollback-events.txt -Pattern "rollback_verify"
 - Verify all log entries include required metadata before marking scenario complete
 
 
+

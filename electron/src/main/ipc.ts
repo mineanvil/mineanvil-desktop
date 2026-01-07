@@ -112,16 +112,25 @@ function makeFailure(params: {
 
 function looksLikeRuntimeFailure(message: string): boolean {
   const m = message.toLowerCase();
+
+  // JVM startup failures are NOT runtime installation failures
+  if (
+    m.includes("java exited early") ||
+    m.includes("could not create the java virtual machine") ||
+    m.includes("unrecognized option") ||
+    m.includes("invalid option")
+  ) {
+    return false;
+  }
+
   return (
     m.includes("managed runtime") ||
-    m.includes("runtime") ||
     m.includes("java was not found") ||
     m.includes("path java failed") ||
-    m.includes("java -version") ||
-    m.includes("java executable") ||
+    m.includes("java executable not found") ||
     m.includes("checksum mismatch") ||
     m.includes("expand-archive") ||
-    m.includes("java")
+    m.includes("download failed")
   );
 }
 
@@ -270,14 +279,14 @@ function launchUserMessage(err: unknown): string {
     ].join("\n");
   }
 
-  // Early exit: temporary, retryable
+  // Early exit: temporary, retryable (or config issue if with JVM options)
   if (m.includes("java exited early") || m.includes("exited early")) {
     return [
       "Minecraft stopped unexpectedly.",
       "",
       "Next steps:",
       "- Try again",
-      "- Check the game logs for more details",
+      "- If the problem persists, contact support",
     ].join("\n");
   }
 
