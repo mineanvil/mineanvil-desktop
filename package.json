@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "author": "SPF VEST LTD",
+  "description": "Making MineCraft Simple",
   "main": "electron/dist/main/main.js",
   "scripts": {
     "generate:ms-client-id": "tsx scripts/generate-ms-client-id.ts",
