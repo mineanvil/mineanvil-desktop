@@ -968,6 +968,40 @@ function App() {
                     >
                       {isLaunchingVanilla ? 'Launching…' : 'Launch Minecraft'}
                     </button>
+                    <button
+                      className="button-secondary button-small button-deemphasized"
+                      onClick={() => {
+                        void (async () => {
+                          setIsLaunchingVanilla(true)
+                          setLaunchVanillaError(null)
+                          setLaunchVanillaCanRetry(true)
+                          logger.info('launchVanilla demo clicked', { version: vanillaVersion, mode: 'demo' })
+                          try {
+                            const res = await api.launchVanilla(vanillaVersion, 'demo')
+                            if (res.ok) {
+                              setLaunchVanillaJson(JSON.stringify(res, null, 2))
+                              setLaunchVanillaError(null)
+                              setLaunchVanillaCanRetry(true)
+                              logger.info('launchVanilla demo success', { ok: true })
+                            } else {
+                              const msg = failureMessage(res, 'Launch failed.')
+                              setLaunchVanillaError(msg)
+                              setLaunchVanillaCanRetry(res.failure?.canRetry ?? true)
+                              logger.info('launchVanilla demo failure', { ok: false })
+                            }
+                          } catch (err) {
+                            const msg = err instanceof Error ? err.message : String(err)
+                            setLaunchVanillaError(msg)
+                            logger.info('launchVanilla demo threw', { error: msg })
+                          } finally {
+                            setIsLaunchingVanilla(false)
+                          }
+                        })()
+                      }}
+                      disabled={isLaunchingVanilla || launchBlocked || (!launchVanillaCanRetry && launchVanillaError !== null)}
+                    >
+                      Try demo
+                    </button>
                   </div>
                   <div className="launch-controls launch-controls-advanced">
                     <label className="launch-version-label">

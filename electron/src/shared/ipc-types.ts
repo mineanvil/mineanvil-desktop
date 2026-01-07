@@ -244,7 +244,7 @@ export interface MineAnvilApi {
   getLaunchCommand(version: string): Promise<GetLaunchCommandResult>;
 
   /** Launch vanilla Minecraft (Electron/Windows only). */
-  launchVanilla(version: string): Promise<LaunchVanillaResult>;
+  launchVanilla(version: string, launchMode?: "normal" | "demo"): Promise<LaunchVanillaResult>;
 
   /** Close the main window (Electron/Windows only). */
   closeWindow(): Promise<CloseWindowResult>;

@@ -27,7 +27,8 @@ const api: MineAnvilApi = {
   getRuntimeStatus: async () => ipcRenderer.invoke(IPC_CHANNELS.getRuntimeStatus),
   installVanilla: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.installVanilla, version),
   getLaunchCommand: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.getLaunchCommand, version),
-  launchVanilla: async (version: string) => ipcRenderer.invoke(IPC_CHANNELS.launchVanilla, version),
+  launchVanilla: async (version: string, launchMode?: "normal" | "demo") =>
+    ipcRenderer.invoke(IPC_CHANNELS.launchVanilla, version, launchMode),
   closeWindow: async () => ipcRenderer.invoke(IPC_CHANNELS.closeWindow),
   checkMinecraftLauncher: async () => ipcRenderer.invoke(IPC_CHANNELS.checkMinecraftLauncher),
   installMinecraftLauncher: async (options?: { preferStore?: boolean; msiPath?: string }) =>

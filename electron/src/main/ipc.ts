@@ -992,37 +992,48 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.launchVanilla, async (_evt, version: string) => {
-    try {
-      let auth:
-        | { playerName: string; uuid: string; mcAccessToken: string }
-        | undefined = undefined;
-
+  ipcMain.handle(
+    IPC_CHANNELS.launchVanilla,
+    async (_evt, version: string, launchMode?: "normal" | "demo") => {
       try {
-        const owned = await requireOwnedMinecraftJava();
-        auth = {
-          playerName: owned.profile.name,
-          uuid: owned.profile.id,
-          mcAccessToken: owned.mcAccessToken,
-        };
+        let auth:
+          | { playerName: string; uuid: string; mcAccessToken: string }
+          | undefined = undefined;
+
+        try {
+          const owned = await requireOwnedMinecraftJava();
+          auth = {
+            playerName: owned.profile.name,
+            uuid: owned.profile.id,
+            mcAccessToken: owned.mcAccessToken,
+          };
+        } catch (e) {
+          const failure = ownershipFailureFromError(e);
+          dialog.showErrorBox("MineAnvil — Launch blocked", failure.userMessage);
+          return { ok: false, error: failure.userMessage, failure } as const;
+        }
+
+        const res = await launchVanilla({
+          versionIdOrLatest: version,
+          auth,
+          launchMode: launchMode ?? "normal",
+        });
+        if (res.ok) return res;
+
+        const msg = res.error ?? "Launch failed";
+        const failure = looksLikeRuntimeFailure(msg)
+          ? runtimeFailureFromError(new Error(msg))
+          : launchFailureFromError(new Error(msg));
+        return { ...res, failure } as const;
       } catch (e) {
-        const failure = ownershipFailureFromError(e);
-        dialog.showErrorBox("MineAnvil — Launch blocked", failure.userMessage);
-        return { ok: false, error: failure.userMessage, failure } as const;
+        const msg = e instanceof Error ? e.message : String(e);
+        const failure = looksLikeRuntimeFailure(msg)
+          ? runtimeFailureFromError(e)
+          : launchFailureFromError(e);
+        return { ok: false, error: msg, failure } as const;
       }
-
-      const res = await launchVanilla({ versionIdOrLatest: version, auth });
-      if (res.ok) return res;
-
-      const msg = res.error ?? "Launch failed";
-      const failure = looksLikeRuntimeFailure(msg) ? runtimeFailureFromError(new Error(msg)) : launchFailureFromError(new Error(msg));
-      return { ...res, failure } as const;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const failure = looksLikeRuntimeFailure(msg) ? runtimeFailureFromError(e) : launchFailureFromError(e);
-      return { ok: false, error: msg, failure } as const;
-    }
-  });
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.closeWindow, async () => {
     const window = mainWindow || BrowserWindow.getAllWindows()[0];

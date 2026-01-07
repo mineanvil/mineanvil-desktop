@@ -17,6 +17,7 @@ import { ensureDefaultInstance } from "../instances/instances";
 import { resolveJavaForMinecraftVersion } from "../runtime/javaSelection";
 import { ensureVanillaInstalled } from "./install";
 import type { VersionJson } from "./metadata";
+import { MS_CLIENT_ID } from "../../shared/generated/msClientId";
 
 export interface LaunchSummary {
   readonly versionId: string;
@@ -33,6 +34,11 @@ export async function buildVanillaLaunchCommand(params: {
    * - Never return tokens to the renderer (IPC must redact if displaying args).
    */
   auth?: { playerName: string; uuid: string; mcAccessToken: string };
+  /**
+   * Launch mode: "normal" (default) or "demo".
+   * Demo mode preserves --demo flag, normal mode removes it.
+   */
+  launchMode?: "normal" | "demo";
 }): Promise<{
   javaPath: string;
   args: string[];
@@ -43,6 +49,8 @@ export async function buildVanillaLaunchCommand(params: {
   if (process.platform !== "win32") {
     throw new Error("Vanilla launching is currently supported on Windows runner only");
   }
+
+  const launchMode = params.launchMode ?? "normal";
 
   const instance = await ensureDefaultInstance();
   const mcDir = path.join(instance.path, ".minecraft");
@@ -111,6 +119,15 @@ export async function buildVanillaLaunchCommand(params: {
     "${auth_uuid}": uuid,
     "${auth_access_token}": accessToken,
     "${user_type}": "msa",
+    "${clientid}": MS_CLIENT_ID,
+    "${auth_xuid}": "", // XUID not available in current auth flow
+    "${version_type}": "release",
+    "${resolution_width}": "854",
+    "${resolution_height}": "480",
+    "${quickPlayPath}": "",
+    "${quickPlaySingleplayer}": "",
+    "${quickPlayMultiplayer}": "",
+    "${quickPlayRealms}": "",
   };
 
   const applySub = (s: string): string => {
@@ -167,9 +184,12 @@ export async function buildVanillaLaunchCommand(params: {
     versionJson.mainClass,
   ];
 
-  const gameArgs: string[] = [
-    ...gameArgsFromJson,
+  // Build game args: use JSON args if available, otherwise legacy args
+  // Modern versions (>= 1.13) use arguments.game and already include all required args
+  // Legacy versions use minecraftArguments string which may need supplementation
+  const gameArgs: string[] = gameArgsFromJson.length > 0 ? gameArgsFromJson : [
     ...legacyGameArgs,
+    // For legacy versions, ensure required args are present
     "--username",
     playerName,
     "--version",
@@ -188,7 +208,82 @@ export async function buildVanillaLaunchCommand(params: {
     substitutions["${user_type}"],
   ];
 
-  const args = [...jvmArgs, ...gameArgs];
+  let args = [...jvmArgs, ...gameArgs];
+
+  // Final placeholder expansion pass: catch any remaining ${...} tokens
+  args = args.map((arg) => {
+    let result = arg;
+    for (const [placeholder, value] of Object.entries(substitutions)) {
+      result = result.split(placeholder).join(value);
+    }
+    return result;
+  });
+
+  // Remove quickPlay, xuid, and demo flags with empty values to prevent issues
+  // - Minecraft crashes if multiple quickPlay flags are present, even with empty values
+  // - --demo triggers "buy Minecraft" flow even if account owns the game (only remove in normal mode)
+  const flagsToRemoveIfEmpty = [
+    "--quickPlaySingleplayer",
+    "--quickPlayMultiplayer",
+    "--quickPlayRealms",
+    "--quickPlayPath",
+    "--xuid",
+  ];
+
+  const filteredArgs: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (flagsToRemoveIfEmpty.includes(arg)) {
+      const nextArg = args[i + 1];
+      // If next arg exists and is empty string, skip both flag and value
+      if (nextArg !== undefined && nextArg === "") {
+        i++; // Skip the next arg (the empty value)
+        continue; // Skip this flag
+      }
+    }
+    // For --demo specifically, remove only in normal mode
+    if (arg === "--demo" && launchMode === "normal") {
+      // Check if next arg is empty string and skip both if so
+      const nextArg = args[i + 1];
+      if (nextArg !== undefined && nextArg === "") {
+        i++; // Skip the next arg (the empty value)
+      }
+      continue; // Skip the demo flag
+    }
+    filteredArgs.push(arg);
+  }
+  args = filteredArgs;
+
+  // Dev-only validation: check for duplicates and unexpanded placeholders
+  if (process.env.NODE_ENV !== "production") {
+    const singleValueFlags = [
+      "--version",
+      "--gameDir",
+      "--assetsDir",
+      "--assetIndex",
+      "--uuid",
+      "--accessToken",
+      "--userType",
+      "--username",
+      "--demo",
+    ];
+
+    for (const flag of singleValueFlags) {
+      const count = args.filter((a) => a === flag).length;
+      if (count > 1) {
+        throw new Error(
+          `Launch args validation failed: flag ${flag} appears ${count} times (expected at most 1)`,
+        );
+      }
+    }
+
+    const unexpandedArgs = args.filter((a) => a.includes("${"));
+    if (unexpandedArgs.length > 0) {
+      throw new Error(
+        `Launch args validation failed: unexpanded placeholders found: ${unexpandedArgs.join(", ")}`,
+      );
+    }
+  }
 
   return {
     javaPath,
@@ -206,11 +301,13 @@ export async function buildVanillaLaunchCommand(params: {
 export async function launchVanilla(params: {
   versionIdOrLatest: string;
   auth?: { playerName: string; uuid: string; mcAccessToken: string };
+  launchMode?: "normal" | "demo";
 }): Promise<{ ok: boolean; pid?: number; error?: string }> {
   try {
     const cmd = await buildVanillaLaunchCommand({
       versionIdOrLatest: params.versionIdOrLatest,
       auth: params.auth,
+      launchMode: params.launchMode,
     });
 
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
