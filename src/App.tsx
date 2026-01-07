@@ -118,16 +118,15 @@ function App() {
         setInstallProgress(progress)
         if (progress.state === 'complete' || progress.state === 'error') {
           setIsInstallingLauncher(false)
-          if (progress.state === 'complete') {
-            void checkMinecraftLauncher()
-          }
+          // Don't auto-check on complete - let user click "Continue" button
+          // This provides explicit feedback for both WinGet and download paths
         }
       })
       return () => {
         progressApi.removeAllListeners()
       }
     }
-  }, [checkMinecraftLauncher])
+  }, [])
 
   // Focus trap for modal
   useEffect(() => {
@@ -390,6 +389,32 @@ function App() {
                     disabled={isCheckingLauncher}
                   >
                     {isCheckingLauncher ? 'Checking...' : 'Recheck now'}
+                  </button>
+                </div>
+              )}
+              {installProgress?.state === 'complete' && !installerPath && (
+                // WinGet success path: Installed directly, no file download
+                <div style={{ marginTop: '1rem' }}>
+                  <p style={{ marginBottom: '1rem', fontWeight: '500', color: 'rgba(100, 255, 100, 0.9)' }}>
+                    Minecraft Launcher installed successfully
+                  </p>
+                  <button
+                    className="button-primary button-large"
+                    onClick={async () => {
+                      // Verify installation and proceed
+                      if (!api.checkMinecraftLauncher) return
+                      try {
+                        const result = await api.checkMinecraftLauncher()
+                        if (result.ok && result.installed) {
+                          setMinecraftLauncherInstalled(true)
+                          setInstallProgress(null)
+                        }
+                      } catch (err) {
+                        logger.info('post-install check failed', { error: err instanceof Error ? err.message : String(err) })
+                      }
+                    }}
+                  >
+                    Continue
                   </button>
                 </div>
               )}
