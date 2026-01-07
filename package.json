@@ -62,8 +62,13 @@
     ],
     "extraResources": [
       {
-        "from": "electron/vendor/java/win32-x64/runtime",
-        "to": "java/win32-x64/runtime",
+        "from": "electron/vendor/java/win32-x64/jre17/runtime",
+        "to": "java/win32-x64/jre17/runtime",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "electron/vendor/java/win32-x64/jre21/runtime",
+        "to": "java/win32-x64/jre21/runtime",
         "filter": ["**/*"]
       }
     ],

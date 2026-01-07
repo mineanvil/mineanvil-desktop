@@ -14,7 +14,7 @@ import { createWriteStream } from "node:fs";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { ensureDefaultInstance } from "../instances/instances";
-import { resolveJavaRuntimePreferManaged } from "../runtime/runtime";
+import { resolveJavaForMinecraftVersion } from "../runtime/javaSelection";
 import { ensureVanillaInstalled } from "./install";
 import type { VersionJson } from "./metadata";
 
@@ -54,7 +54,15 @@ export async function buildVanillaLaunchCommand(params: {
   const versionRaw = await fs.readFile(versionJsonPath, { encoding: "utf8" });
   const versionJson = JSON.parse(versionRaw) as VersionJson;
 
-  const runtime = await resolveJavaRuntimePreferManaged();
+  // SP1.7: Resolve Java based on Minecraft version
+  const javaResolution = await resolveJavaForMinecraftVersion(versionId);
+  if (!javaResolution.javaPath) {
+    throw new Error(
+      `No Java ${javaResolution.major} runtime available for Minecraft ${versionId}. ` +
+        `Reinstall MineAnvil or set MINEANVIL_JAVA_PATH to a Java ${javaResolution.major} installation.`,
+    );
+  }
+  const javaPath = javaResolution.javaPath;
 
   // Build library classpath from version json
   const libsDir = path.join(mcDir, "libraries");
@@ -183,7 +191,7 @@ export async function buildVanillaLaunchCommand(params: {
   const args = [...jvmArgs, ...gameArgs];
 
   return {
-    javaPath: runtime.javaPath,
+    javaPath,
     args,
     cwd: mcDir,
     env: {},

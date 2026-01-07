@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 /**
- * Fetch Java 17 JRE for bundling with portable builds.
+ * Fetch Java 17 and 21 JREs for bundling with portable builds.
  *
- * Stop Point 1.6 — Bundled Java Runtime (Portable Builds)
+ * Stop Point 1.7 — Multi Java Runtime (17 + 21)
  *
  * Requirements:
- * - Download Eclipse Temurin 17 JRE (Windows x64, pinned version)
- * - Verify SHA256 checksum (fail fast on mismatch)
- * - Extract to normalized vendor directory: electron/vendor/java/win32-x64/runtime/
- * - Skip download if runtime already exists
+ * - Download Eclipse Temurin 17 and 21 JREs (Windows x64, pinned versions)
+ * - Verify SHA256 checksums (fail fast on mismatch)
+ * - Extract to normalized vendor directories:
+ *   - electron/vendor/java/win32-x64/jre17/runtime/
+ *   - electron/vendor/java/win32-x64/jre21/runtime/
+ * - Skip downloads if runtimes already exist
  * - Windows-only (guard against non-Windows platforms)
  *
  * Usage:
@@ -23,29 +25,59 @@ import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 
 // ============================================================================
-// PINNED RUNTIME CONFIGURATION
+// PINNED RUNTIME CONFIGURATIONS
 // ============================================================================
 
-const RUNTIME_CONFIG = {
-  vendor: "Eclipse Temurin",
-  version: "17.0.13+11",
-  platform: "win32-x64",
-  downloadUrl:
-    "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13%2B11/OpenJDK17U-jre_x64_windows_hotspot_17.0.13_11.zip",
-  // SHA256 checksum for OpenJDK17U-jre_x64_windows_hotspot_17.0.13_11.zip
-  // Verified by download: 2026-01-06
-  sha256: "11a61a94d383e755b08b4e5890a13d148bc9f95b7149cbbeec62efb8c75a4a67",
-} as const;
+interface RuntimeConfig {
+  readonly major: number;
+  readonly vendor: string;
+  readonly version: string;
+  readonly platform: string;
+  readonly downloadUrl: string;
+  readonly sha256: string;
+}
+
+const RUNTIME_CONFIGS: RuntimeConfig[] = [
+  {
+    major: 17,
+    vendor: "Eclipse Temurin",
+    version: "17.0.13+11",
+    platform: "win32-x64",
+    downloadUrl:
+      "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13%2B11/OpenJDK17U-jre_x64_windows_hotspot_17.0.13_11.zip",
+    // SHA256 checksum for OpenJDK17U-jre_x64_windows_hotspot_17.0.13_11.zip
+    // Verified by download: 2026-01-06
+    sha256: "11a61a94d383e755b08b4e5890a13d148bc9f95b7149cbbeec62efb8c75a4a67",
+  },
+  {
+    major: 21,
+    vendor: "Eclipse Temurin",
+    version: "21.0.5+11",
+    platform: "win32-x64",
+    downloadUrl:
+      "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_x64_windows_hotspot_21.0.5_11.zip",
+    // SHA256 checksum for OpenJDK21U-jre_x64_windows_hotspot_21.0.5_11.zip
+    // Verified by download: 2026-01-07
+    sha256: "1749b36cfac273cee11802bf3e90caada5062de6a3fef1a3814c0568b25fd654",
+  },
+];
 
 // ============================================================================
 // PATHS
 // ============================================================================
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const VENDOR_DIR = path.join(PROJECT_ROOT, "electron", "vendor", "java", RUNTIME_CONFIG.platform);
-const RUNTIME_DIR = path.join(VENDOR_DIR, "runtime");
+const PLATFORM = "win32-x64";
+const VENDOR_BASE_DIR = path.join(PROJECT_ROOT, "electron", "vendor", "java", PLATFORM);
 const DOWNLOADS_DIR = path.join(PROJECT_ROOT, ".downloads");
-const ZIP_FILE = path.join(DOWNLOADS_DIR, `temurin-17-jre-${RUNTIME_CONFIG.platform}.zip`);
+
+function getRuntimeDir(major: number): string {
+  return path.join(VENDOR_BASE_DIR, `jre${major}`, "runtime");
+}
+
+function getZipFile(major: number): string {
+  return path.join(DOWNLOADS_DIR, `temurin-${major}-jre-${PLATFORM}.zip`);
+}
 
 // ============================================================================
 // UTILITIES
@@ -212,6 +244,7 @@ async function extractZip(params: { zipFile: string; destDir: string }): Promise
 /**
  * Temurin extracts to a nested directory like:
  *   jdk-17.0.13+11-jre/bin/java.exe
+ *   jdk-21.0.5+11-jre/bin/java.exe
  *
  * We need to normalize this to:
  *   runtime/bin/java.exe
@@ -221,7 +254,7 @@ async function extractZip(params: { zipFile: string; destDir: string }): Promise
 async function normalizeExtractedRuntime(extractDir: string): Promise<void> {
   log("Normalizing directory structure...");
 
-  // Find the extracted nested directory (e.g., jdk-17.0.13+11-jre)
+  // Find the extracted nested directory
   const entries = await fs.promises.readdir(extractDir, { withFileTypes: true });
   const nestedDir = entries.find((entry) => entry.isDirectory());
 
@@ -249,47 +282,47 @@ async function normalizeExtractedRuntime(extractDir: string): Promise<void> {
 }
 
 // ============================================================================
-// MAIN
+// FETCH SINGLE RUNTIME
 // ============================================================================
 
-async function main(): Promise<void> {
-  log("Starting Java runtime fetch...");
-  log(`Vendor: ${RUNTIME_CONFIG.vendor}`);
-  log(`Version: ${RUNTIME_CONFIG.version}`);
-  log(`Platform: ${RUNTIME_CONFIG.platform}`);
+async function fetchRuntime(config: RuntimeConfig): Promise<void> {
+  log(`\n${"=".repeat(80)}`);
+  log(`Fetching Java ${config.major} runtime`);
+  log(`Vendor: ${config.vendor}`);
+  log(`Version: ${config.version}`);
+  log(`Platform: ${config.platform}`);
+  log(`${"=".repeat(80)}\n`);
 
-  // Guard: Windows only
-  if (process.platform !== "win32") {
-    log("⏭️  Skipping: Not running on Windows (bundled runtime is Windows-only)");
-    process.exit(0);
-  }
+  const runtimeDir = getRuntimeDir(config.major);
+  const javaExe = path.join(runtimeDir, "bin", "java.exe");
 
   // Check if runtime already exists
-  const javaExe = path.join(RUNTIME_DIR, "bin", "java.exe");
   if (await fileExists(javaExe)) {
-    log("⏭️  Runtime already exists, skipping download");
+    log(`⏭️  Java ${config.major} runtime already exists, skipping download`);
     log(`  Path: ${javaExe}`);
-    process.exit(0);
+    return;
   }
+
+  const zipFile = getZipFile(config.major);
 
   // Download
   await downloadFile({
-    url: RUNTIME_CONFIG.downloadUrl,
-    destFile: ZIP_FILE,
-    expectedSha256: RUNTIME_CONFIG.sha256,
+    url: config.downloadUrl,
+    destFile: zipFile,
+    expectedSha256: config.sha256,
   });
 
   // Extract to temporary directory
-  const tempExtractDir = path.join(VENDOR_DIR, "temp-extract");
+  const tempExtractDir = path.join(VENDOR_BASE_DIR, `jre${config.major}`, "temp-extract");
   await fs.promises.rm(tempExtractDir, { recursive: true, force: true });
-  await extractZip({ zipFile: ZIP_FILE, destDir: tempExtractDir });
+  await extractZip({ zipFile, destDir: tempExtractDir });
 
   // Normalize directory structure
   await normalizeExtractedRuntime(tempExtractDir);
 
   // Move to final location
-  await fs.promises.rm(RUNTIME_DIR, { recursive: true, force: true });
-  await fs.promises.rename(path.join(tempExtractDir, "runtime"), RUNTIME_DIR);
+  await fs.promises.rm(runtimeDir, { recursive: true, force: true });
+  await fs.promises.rename(path.join(tempExtractDir, "runtime"), runtimeDir);
   await fs.promises.rm(tempExtractDir, { recursive: true, force: true });
 
   // Verify final structure
@@ -297,16 +330,46 @@ async function main(): Promise<void> {
     throw new Error(`Final verification failed: ${javaExe} not found`);
   }
 
-  log("✅ Java runtime successfully fetched and installed");
-  log(`  Path: ${RUNTIME_DIR}`);
+  log(`✅ Java ${config.major} runtime successfully fetched and installed`);
+  log(`  Path: ${runtimeDir}`);
   log(`  Executable: ${javaExe}`);
 
   // Clean up download
   try {
-    await fs.promises.unlink(ZIP_FILE);
+    await fs.promises.unlink(zipFile);
     log("  Cleaned up ZIP file");
   } catch {
     // Ignore cleanup errors
+  }
+}
+
+// ============================================================================
+// MAIN
+// ============================================================================
+
+async function main(): Promise<void> {
+  log("Starting Java runtime fetch...");
+  log(`Fetching ${RUNTIME_CONFIGS.length} runtimes (Java ${RUNTIME_CONFIGS.map((c) => c.major).join(", ")})`);
+
+  // Guard: Windows only
+  if (process.platform !== "win32") {
+    log("⏭️  Skipping: Not running on Windows (bundled runtimes are Windows-only)");
+    process.exit(0);
+  }
+
+  // Fetch all runtimes
+  for (const config of RUNTIME_CONFIGS) {
+    await fetchRuntime(config);
+  }
+
+  log(`\n${"=".repeat(80)}`);
+  log("✅ All Java runtimes successfully fetched");
+  log(`${"=".repeat(80)}\n`);
+
+  // Display final paths
+  for (const config of RUNTIME_CONFIGS) {
+    const javaExe = path.join(getRuntimeDir(config.major), "bin", "java.exe");
+    log(`  Java ${config.major}: ${javaExe}`);
   }
 }
 
