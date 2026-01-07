@@ -226,6 +226,15 @@ export async function launchVanilla(params: {
       if (lastLines.length > 200) lastLines.shift();
     };
 
+    // Log full Java command line for diagnostics
+    console.log("[minecraft.launch] Spawning Java process:");
+    console.log(`  Java path: ${cmd.javaPath}`);
+    console.log(`  Working directory: ${cmd.cwd}`);
+    console.log(`  Arguments (${cmd.args.length}):`);
+    cmd.args.forEach((arg, i) => {
+      console.log(`    [${i}] ${arg}`);
+    });
+
     const child = spawn(cmd.javaPath, cmd.args, {
       cwd: cmd.cwd,
       env: { ...process.env, ...cmd.env },
