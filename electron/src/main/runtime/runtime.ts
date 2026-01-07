@@ -77,11 +77,56 @@ export async function resolveJavaRuntime(): Promise<RuntimeDescriptor> {
 }
 
 /**
- * Prefer a managed runtime first (Windows x64 only), then fall back to PATH java.
+ * Resolve bundled Java runtime (packaged builds only).
  *
- * This allows MineAnvil to work on machines without a system Java install.
+ * Stop Point 1.6 — Bundled Java Runtime (Portable Builds)
+ *
+ * Returns the bundled java.exe path if:
+ * - Running in a packaged Electron app (process.resourcesPath defined)
+ * - Platform is Windows
+ * - resources/java/win32-x64/runtime/bin/java.exe exists
+ *
+ * Otherwise returns null.
+ */
+function resolveBundledJava(): string | null {
+  // Only available in packaged builds
+  if (!process.resourcesPath) {
+    return null;
+  }
+
+  // Only supported on Windows
+  if (process.platform !== "win32") {
+    return null;
+  }
+
+  // Deterministic path (no globbing)
+  const javaExe = path.join(process.resourcesPath, "java", "win32-x64", "runtime", "bin", "java.exe");
+
+  if (existsSync(javaExe)) {
+    return javaExe;
+  }
+
+  return null;
+}
+
+/**
+ * Prefer bundled runtime first (SP1.6), then managed runtime (dev mode), then fall back to PATH java.
+ *
+ * This allows MineAnvil portable builds to work fully offline.
  */
 export async function resolveJavaRuntimePreferManaged(): Promise<RuntimeDescriptor> {
+  // SP1.6: Check for bundled Java first (packaged builds)
+  const bundled = resolveBundledJava();
+  if (bundled) {
+    const javaVersion = await getJavaVersion(bundled);
+    return {
+      kind: "system",
+      javaPath: bundled,
+      javaVersion,
+    };
+  }
+
+  // Dev mode: Try managed runtime installation
   let managedError: string | null = null;
   try {
     return await ensureManagedRuntime(DEFAULT_RUNTIME_MANIFEST);
