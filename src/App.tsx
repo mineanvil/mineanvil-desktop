@@ -403,18 +403,34 @@ function App() {
                     onClick={async () => {
                       // Verify installation and proceed
                       if (!api.checkMinecraftLauncher) return
+                      setIsCheckingLauncher(true)
                       try {
                         const result = await api.checkMinecraftLauncher()
                         if (result.ok && result.installed) {
                           setMinecraftLauncherInstalled(true)
                           setInstallProgress(null)
+                        } else {
+                          // Detection failed - show error
+                          setInstallProgress({
+                            state: 'error',
+                            message: 'Could not verify installation',
+                            error: result.error || 'Minecraft Launcher not detected. Try restarting MineAnvil.',
+                          })
                         }
                       } catch (err) {
                         logger.info('post-install check failed', { error: err instanceof Error ? err.message : String(err) })
+                        setInstallProgress({
+                          state: 'error',
+                          message: 'Could not verify installation',
+                          error: err instanceof Error ? err.message : String(err),
+                        })
+                      } finally {
+                        setIsCheckingLauncher(false)
                       }
                     }}
+                    disabled={isCheckingLauncher}
                   >
-                    Continue
+                    {isCheckingLauncher ? 'Checking...' : 'Continue'}
                   </button>
                 </div>
               )}
