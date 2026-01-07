@@ -58,6 +58,7 @@ function App() {
   const [installProgress, setInstallProgress] = useState<{ state: string; message: string; error?: string } | null>(null)
   const [installerPath, setInstallerPath] = useState<string | null>(null)
   const [showMsiDialog, setShowMsiDialog] = useState<boolean>(false)
+  const [postInstallCheckResult, setPostInstallCheckResult] = useState<'pending' | 'checking' | 'found' | 'not-found' | null>(null)
 
   const api = useMemo(() => getMineAnvilApi(), [])
   const logger = useMemo(() => getRendererLogger('ui'), [])
@@ -394,59 +395,133 @@ function App() {
               )}
               {installProgress?.state === 'complete' && installerPath && (
                 <div style={{ marginTop: '1rem' }}>
-                  <div className="launch-actions" style={{ gap: '0.5rem' }}>
-                    <button
-                      className="button-primary button-large"
-                      onClick={async () => {
-                        if (!api.openInstaller) return
-                        try {
-                          const result = await api.openInstaller(installerPath)
-                          if (!result.ok) {
-                            logger.info('openInstaller failed', { error: result.error })
-                            setInstallProgress({
-                              state: 'error',
-                              message: 'Could not open installer',
-                              error: result.error || 'Unknown error',
-                            })
+                  {postInstallCheckResult === 'found' ? (
+                    // Success state: Minecraft Launcher found
+                    <div>
+                      <p style={{ marginBottom: '1rem', fontWeight: '500', color: 'rgba(100, 255, 100, 0.9)' }}>
+                        Minecraft Launcher found
+                      </p>
+                      <button
+                        className="button-primary button-large"
+                        onClick={() => {
+                          // Reset installer flow state and return to normal flow
+                          setInstallProgress(null)
+                          setInstallerPath(null)
+                          setPostInstallCheckResult(null)
+                          setMinecraftLauncherInstalled(true)
+                        }}
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  ) : postInstallCheckResult === 'not-found' || postInstallCheckResult === 'checking' ? (
+                    // Retry state: Not found, let user try again
+                    <div>
+                      <p style={{ marginBottom: '1rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+                        We can't see it yet. Try again.
+                      </p>
+                      <button
+                        className="button-secondary button-large"
+                        onClick={async () => {
+                          if (!api.checkMinecraftLauncher) return
+                          setPostInstallCheckResult('checking')
+                          try {
+                            const result = await api.checkMinecraftLauncher()
+                            if (result.ok && result.installed) {
+                              setPostInstallCheckResult('found')
+                            } else {
+                              setPostInstallCheckResult('not-found')
+                            }
+                          } catch (err) {
+                            logger.info('post-install check failed', { error: err instanceof Error ? err.message : String(err) })
+                            setPostInstallCheckResult('not-found')
                           }
-                        } catch (err) {
-                          const msg = err instanceof Error ? err.message : String(err)
-                          logger.info('openInstaller exception', { error: msg })
-                          setInstallProgress({
-                            state: 'error',
-                            message: 'Could not open installer',
-                            error: msg,
-                          })
-                        }
-                      }}
-                    >
-                      Open installer
-                    </button>
-                    <button
-                      className="button-secondary button-large"
-                      onClick={async () => {
-                        if (!api.showInstallerInFolder) return
-                        try {
-                          const result = await api.showInstallerInFolder(installerPath)
-                          if (!result.ok) {
-                            logger.info('showInstallerInFolder failed', { error: result.error })
-                          }
-                        } catch (err) {
-                          const msg = err instanceof Error ? err.message : String(err)
-                          logger.info('showInstallerInFolder exception', { error: msg })
-                        }
-                      }}
-                    >
-                      Show in folder
-                    </button>
-                  </div>
-                  <details style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-                    <summary style={{ cursor: 'pointer', fontWeight: '500' }}>Need help?</summary>
-                    <p style={{ marginTop: '0.5rem', marginLeft: '1rem', lineHeight: '1.5' }}>
-                      Windows will guide you through the Minecraft Launcher installation steps.
-                      Once installed, come back here to continue setting up your Minecraft world.
-                    </p>
-                  </details>
+                        }}
+                        disabled={postInstallCheckResult === 'checking'}
+                      >
+                        {postInstallCheckResult === 'checking' ? 'Checking...' : "I've installed it, check again"}
+                      </button>
+                    </div>
+                  ) : (
+                    // Initial state: Show open/show buttons and verification button
+                    <>
+                      <div className="launch-actions" style={{ gap: '0.5rem' }}>
+                        <button
+                          className="button-primary button-large"
+                          onClick={async () => {
+                            if (!api.openInstaller) return
+                            try {
+                              const result = await api.openInstaller(installerPath)
+                              if (!result.ok) {
+                                logger.info('openInstaller failed', { error: result.error })
+                                setInstallProgress({
+                                  state: 'error',
+                                  message: 'Could not open installer',
+                                  error: result.error || 'Unknown error',
+                                })
+                              }
+                            } catch (err) {
+                              const msg = err instanceof Error ? err.message : String(err)
+                              logger.info('openInstaller exception', { error: msg })
+                              setInstallProgress({
+                                state: 'error',
+                                message: 'Could not open installer',
+                                error: msg,
+                              })
+                            }
+                          }}
+                        >
+                          Open installer
+                        </button>
+                        <button
+                          className="button-secondary button-large"
+                          onClick={async () => {
+                            if (!api.showInstallerInFolder) return
+                            try {
+                              const result = await api.showInstallerInFolder(installerPath)
+                              if (!result.ok) {
+                                logger.info('showInstallerInFolder failed', { error: result.error })
+                              }
+                            } catch (err) {
+                              const msg = err instanceof Error ? err.message : String(err)
+                              logger.info('showInstallerInFolder exception', { error: msg })
+                            }
+                          }}
+                        >
+                          Show in folder
+                        </button>
+                      </div>
+                      <div style={{ marginTop: '1rem' }}>
+                        <button
+                          className="button-secondary button-large"
+                          onClick={async () => {
+                            if (!api.checkMinecraftLauncher) return
+                            setPostInstallCheckResult('checking')
+                            try {
+                              const result = await api.checkMinecraftLauncher()
+                              if (result.ok && result.installed) {
+                                setPostInstallCheckResult('found')
+                              } else {
+                                setPostInstallCheckResult('not-found')
+                              }
+                            } catch (err) {
+                              logger.info('post-install check failed', { error: err instanceof Error ? err.message : String(err) })
+                              setPostInstallCheckResult('not-found')
+                            }
+                          }}
+                        >
+                          I've installed it, check again
+                        </button>
+                      </div>
+                      <details style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+                        <summary style={{ cursor: 'pointer', fontWeight: '500' }}>Need help?</summary>
+                        <p style={{ marginTop: '0.5rem', marginLeft: '1rem', lineHeight: '1.5' }}>
+                          Windows will guide you through the Minecraft Launcher installation steps.
+                          Once installed, come back here to continue setting up your Minecraft world.
+                        </p>
+                      </details>
+                    </>
+                  )}
                 </div>
               )}
               {installProgress?.state === 'error' && (
