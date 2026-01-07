@@ -254,6 +254,68 @@ Evidence / notes:
 
 ---
 
+## Stop Point 1.7 — Multi Java Runtime (17 + 21)
+
+Definition:
+Portable builds must bundle both Java 17 and Java 21 JREs and select the correct runtime automatically based on the Minecraft version being launched. Minecraft versions >= 1.20.5 require Java 21, while older versions require Java 17. Resolution is deterministic with no runtime globbing or directory searching, and portable builds work offline without requiring environment variable configuration.
+
+### Build-Time Multi-Runtime Fetching
+- [done] Build script downloads both Eclipse Temurin 17 and 21 JREs (Windows x64)
+- [done] SHA256 checksums verified for both runtimes before extraction
+- [done] Both runtimes extracted to normalized vendor directory structure
+- [done] Vendor directories are gitignored (not committed to repository)
+- [done] Build fails fast if checksum mismatch occurs
+- [done] Downloads skipped if runtimes already exist (fast rebuilds)
+
+### Packaging Integration
+- [done] electron-builder config includes both runtimes in extraResources
+- [done] Packaged output contains `resources/java/win32-x64/jre17/runtime/bin/java.exe`
+- [done] Packaged output contains `resources/java/win32-x64/jre21/runtime/bin/java.exe`
+- [done] Directory structure is normalized and deterministic (no globbing)
+- [done] Prebuild hook fetches both runtimes before packaging
+
+### Version-Aware Runtime Selection
+- [done] Java major version determined by Minecraft version (>= 1.20.5 uses Java 21)
+- [done] Minecraft version parsing handles semantic versions correctly
+- [done] Runtime resolution is deterministic (exact paths only, no searching)
+- [done] Resolution order per major version: bundled → MINEANVIL_JAVA_PATH → PATH (if opted-in)
+- [done] Bundled runtime always preferred in packaged builds
+
+### Resolution Implementation
+- [done] `getRequiredJavaMajorForMinecraftVersion()` implements version threshold logic
+- [done] `resolveJavaForMinecraftVersion()` returns version-aware resolution result
+- [done] Launch pipeline uses version-aware resolution instead of single-runtime resolution
+- [done] Error messages specify required Java version when runtime missing
+- [done] All resolution decisions logged for diagnostics
+
+### Parent-Friendly Error Messages
+- [done] Missing bundled runtime shows: "No Java [version] runtime available. Reinstall MineAnvil."
+- [done] Error messages specify required Java major version
+- [done] No environment variable instructions in parent-facing UI
+- [done] Developer-only guidance logged only (not displayed)
+- [done] All errors use plain, calm language
+
+### Clean Machine Validation
+- [ ] Portable build launches Minecraft 1.21.x successfully (uses Java 21)
+- [ ] Portable build launches Minecraft 1.20.4 successfully (uses Java 17)
+- [ ] Portable build runs on Windows machine with NO Java installed
+- [ ] Portable build runs with NO MINEANVIL_JAVA_PATH set
+- [ ] Launch succeeds without manual configuration
+- [ ] Logs show correct Java version selected per Minecraft version
+
+Evidence / notes:
+- [done] Planning document: `prompts/01-execution/L1/SP1.7/01-sp1.7-definition.md`
+- [done] Implementation: `electron/src/main/runtime/javaSelection.ts`
+- [done] Build script: `scripts/fetch-java-runtime.ts`
+- [done] Launch integration: `electron/src/main/minecraft/launch.ts`
+- [done] Packaging config: `package.json` extraResources
+- [done] Implementation commit: 663eaa99ff2cc2bc610c081cdd7eb6a3a76f8b97
+- [ ] Clean machine test report (when validation complete)
+
+**Current Status**: ⏳ **SP1.7 is PLANNED** (implementation complete, validation pending).
+
+---
+
 ## Layer 1 Completion Criteria
 
 Layer 1 is complete ONLY when:
