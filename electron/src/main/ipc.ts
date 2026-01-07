@@ -138,6 +138,17 @@ function runtimeUserMessage(err: unknown): string {
   const safe = safeErrorString(err);
   const m = safe.message.toLowerCase();
 
+  // SP1.6: Packaged builds with missing bundled Java (permanent, no retry)
+  // Bundled Java should always be present in packaged builds
+  if (process.resourcesPath) {
+    return [
+      "MineAnvil is missing a required component.",
+      "",
+      "Next steps:",
+      "- Reinstall MineAnvil from the official installer",
+    ].join("\n");
+  }
+
   // Configuration issues: permanent, no retry
   if (m.includes("not configured") || m.includes("placeholder")) {
     return [
