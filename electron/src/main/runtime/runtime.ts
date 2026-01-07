@@ -91,21 +91,26 @@ export async function resolveJavaRuntime(): Promise<RuntimeDescriptor> {
 function resolveBundledJava(): string | null {
   // Only available in packaged builds
   if (!process.resourcesPath) {
+    console.log("[resolveBundledJava] Not in packaged build (process.resourcesPath undefined)");
     return null;
   }
 
   // Only supported on Windows
   if (process.platform !== "win32") {
+    console.log("[resolveBundledJava] Not on Windows platform:", process.platform);
     return null;
   }
 
   // Deterministic path (no globbing)
   const javaExe = path.join(process.resourcesPath, "java", "win32-x64", "runtime", "bin", "java.exe");
+  console.log("[resolveBundledJava] Checking for bundled Java at:", javaExe);
 
   if (existsSync(javaExe)) {
+    console.log("[resolveBundledJava] Found bundled Java");
     return javaExe;
   }
 
+  console.log("[resolveBundledJava] Bundled Java not found at expected path");
   return null;
 }
 
@@ -115,10 +120,15 @@ function resolveBundledJava(): string | null {
  * This allows MineAnvil portable builds to work fully offline.
  */
 export async function resolveJavaRuntimePreferManaged(): Promise<RuntimeDescriptor> {
+  console.log("[resolveJavaRuntimePreferManaged] Starting Java resolution");
+  console.log("[resolveJavaRuntimePreferManaged] process.resourcesPath:", process.resourcesPath);
+
   // SP1.6: Check for bundled Java first (packaged builds)
   const bundled = resolveBundledJava();
   if (bundled) {
+    console.log("[resolveJavaRuntimePreferManaged] Using bundled Java:", bundled);
     const javaVersion = await getJavaVersion(bundled);
+    console.log("[resolveJavaRuntimePreferManaged] Bundled Java version:", javaVersion);
     return {
       kind: "system",
       javaPath: bundled,
@@ -126,18 +136,22 @@ export async function resolveJavaRuntimePreferManaged(): Promise<RuntimeDescript
     };
   }
 
+  console.log("[resolveJavaRuntimePreferManaged] No bundled Java, trying managed runtime");
   // Dev mode: Try managed runtime installation
   let managedError: string | null = null;
   try {
     return await ensureManagedRuntime(DEFAULT_RUNTIME_MANIFEST);
   } catch (e) {
     managedError = e instanceof Error ? e.message : String(e);
+    console.log("[resolveJavaRuntimePreferManaged] Managed runtime failed:", managedError);
   }
 
+  console.log("[resolveJavaRuntimePreferManaged] Trying PATH java");
   try {
     return await resolveJavaRuntime();
   } catch (e) {
     const fallbackError = e instanceof Error ? e.message : String(e);
+    console.log("[resolveJavaRuntimePreferManaged] PATH java failed:", fallbackError);
     throw new Error(`Managed runtime failed: ${managedError}; PATH java failed: ${fallbackError}`);
   }
 }
