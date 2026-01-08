@@ -417,3 +417,65 @@ export async function loadOrGenerateLockfile(
   }
 }
 
+/**
+ * Reset (delete and regenerate) the lockfile for an instance.
+ * This is a recovery operation for when the lockfile is mismatched or corrupted.
+ *
+ * Steps:
+ * 1. Delete the existing lockfile
+ * 2. Regenerate it by calling loadOrGenerateLockfile
+ *
+ * @param manifest - The pack manifest to regenerate the lockfile from
+ * @param instanceId - The instance ID (defaults to default instance)
+ * @returns Result indicating success or failure
+ */
+export async function resetLockfile(
+  manifest: PackManifestV1,
+  instanceId: string = DEFAULT_INSTANCE_ID,
+): Promise<{ ok: true; lockfile: PackLockfileV1 } | { ok: false; error: string }> {
+  const logger = getLogger();
+  const lockfilePath = packLockfilePath(instanceId);
+
+  try {
+    // Log reset start
+    logger.info("lockfile reset started", {
+      instanceId,
+      lockfilePath,
+      expectedVersion: manifest.minecraftVersion,
+    });
+
+    // Delete existing lockfile if it exists
+    try {
+      await fs.unlink(lockfilePath);
+      logger.info("lockfile deleted", { lockfilePath });
+    } catch (e) {
+      // If file doesn't exist, that's OK - we're about to regenerate it
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw e;
+      }
+      logger.info("lockfile did not exist (already deleted)", { lockfilePath });
+    }
+
+    // Regenerate lockfile
+    const result = await loadOrGenerateLockfile(manifest, instanceId);
+
+    if (result.ok) {
+      logger.info("lockfile reset complete", {
+        minecraftVersion: result.lockfile.minecraftVersion,
+        artifactCount: result.lockfile.artifacts.length,
+      });
+      return { ok: true, lockfile: result.lockfile };
+    } else {
+      logger.error("lockfile regeneration failed", { error: result.error });
+      return { ok: false, error: result.error };
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logger.error("lockfile reset failed", { error: msg });
+    return {
+      ok: false,
+      error: `Lockfile reset failed: ${msg}`,
+    };
+  }
+}
+

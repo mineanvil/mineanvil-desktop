@@ -59,6 +59,10 @@ function App() {
   const [installerPath, setInstallerPath] = useState<string | null>(null)
   const [showMsiDialog, setShowMsiDialog] = useState<boolean>(false)
   const [postInstallCheckResult, setPostInstallCheckResult] = useState<'pending' | 'checking' | 'found' | 'not-found' | null>(null)
+  const [startupError, setStartupError] = useState<{ error: string; expectedVersion?: string; foundVersion?: string; lockfilePath?: string } | null>(null)
+  const [isResettingLockfile, setIsResettingLockfile] = useState<boolean>(false)
+  const [resetLockfileError, setResetLockfileError] = useState<string | null>(null)
+  const [resetDetailsExpanded, setResetDetailsExpanded] = useState<boolean>(false)
 
   const api = useMemo(() => getMineAnvilApi(), [])
   const logger = useMemo(() => getRendererLogger('ui'), [])
@@ -89,6 +93,23 @@ function App() {
   useEffect(() => {
     void fetchStatus('initial')
   }, [fetchStatus])
+
+  // Check for startup error (lockfile mismatch) on mount
+  const checkStartupError = useCallback(async () => {
+    try {
+      const result = await api.getStartupError()
+      if (result.error) {
+        setStartupError(result.error)
+        logger.info('startup error detected', { error: result.error.error })
+      }
+    } catch (err) {
+      logger.info('checkStartupError failed', { error: err instanceof Error ? err.message : String(err) })
+    }
+  }, [api, logger])
+
+  useEffect(() => {
+    void checkStartupError()
+  }, [checkStartupError])
 
   // Check for Minecraft Launcher on mount
   const checkMinecraftLauncher = useCallback(async () => {
@@ -1760,6 +1781,95 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Lockfile Reset Modal - Shown when startup error detected */}
+      {startupError && (
+        <div className="modal-overlay">
+          <div className="modal-dialog" role="dialog" aria-labelledby="reset-modal-title" aria-modal="true">
+            <h2 id="reset-modal-title" className="modal-title">Minecraft setup needs a quick reset</h2>
+            <div className="modal-content">
+              <p className="modal-text">
+                MineAnvil found a version mismatch in its saved setup.
+              </p>
+              {resetLockfileError && (
+                <div className="status-error" style={{ marginTop: '1rem' }}>
+                  <p className="error-message">{resetLockfileError}</p>
+                </div>
+              )}
+              <details
+                style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.7)' }}
+                open={resetDetailsExpanded}
+                onToggle={(e) => setResetDetailsExpanded((e.target as HTMLDetailsElement).open)}
+              >
+                <summary style={{ cursor: 'pointer', fontWeight: '500', marginBottom: '0.5rem' }}>Details</summary>
+                <div style={{ marginLeft: '1rem', lineHeight: '1.6' }}>
+                  <p style={{ marginBottom: '0.5rem' }}>
+                    <strong>What happened:</strong> The Minecraft version in your setup changed.
+                  </p>
+                  {startupError.expectedVersion && startupError.foundVersion && (
+                    <p style={{ marginBottom: '0.5rem' }}>
+                      <strong>Expected:</strong> {startupError.expectedVersion}<br />
+                      <strong>Found:</strong> {startupError.foundVersion}
+                    </p>
+                  )}
+                  <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.5)' }}>
+                    Technical: {startupError.error}
+                  </p>
+                </div>
+              </details>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => {
+                  // Close modal - allow user to continue (app is in degraded state)
+                  setStartupError(null)
+                  setResetLockfileError(null)
+                  logger.info('reset modal closed without action')
+                }}
+                disabled={isResettingLockfile}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="button-primary"
+                onClick={async () => {
+                  setIsResettingLockfile(true)
+                  setResetLockfileError(null)
+                  logger.info('resetLockfile clicked')
+                  try {
+                    const res = await api.resetLockfile()
+                    if (res.ok) {
+                      logger.info('resetLockfile success')
+                      // Clear startup error state immediately so modal disappears
+                      setStartupError(null)
+                      setResetLockfileError(null)
+                      // Success - reload the page to restart with clean state
+                      window.location.reload()
+                    } else {
+                      const msg = res.error ?? 'Reset failed.'
+                      setResetLockfileError(msg)
+                      logger.info('resetLockfile failure', { error: msg })
+                    }
+                  } catch (err) {
+                    const msg = err instanceof Error ? err.message : String(err)
+                    setResetLockfileError(msg)
+                    logger.info('resetLockfile threw', { error: msg })
+                  } finally {
+                    setIsResettingLockfile(false)
+                  }
+                }}
+                disabled={isResettingLockfile}
+                autoFocus
+              >
+                {isResettingLockfile ? 'Resetting...' : 'Reset this Minecraft setup'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Left Navigation */}
       <nav className="left-nav">
         <div className="nav-header">

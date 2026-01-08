@@ -105,6 +105,14 @@ function createBrowserStub(): BrowserStubApi {
       ok: false,
       error: "showInstallerInFolder is only available in Electron on Windows",
     }),
+    resetLockfile: async () => ({
+      ok: false,
+      error: "resetLockfile is only available in Electron on Windows",
+      failure: notElectronFailure("LAUNCH", "resetLockfile"),
+    }),
+    getStartupError: async () => ({
+      error: null,
+    }),
     // Dev-only escape hatch for browser mode. Not part of the public API contract.
     __dev: {
       setAuthStatus: (status: AuthStatus) => {

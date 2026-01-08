@@ -31,6 +31,8 @@ export const IPC_CHANNELS = {
   pickLocalInstaller: "mineanvil:pickLocalInstaller",
   openInstaller: "mineanvil:openInstaller",
   showInstallerInFolder: "mineanvil:showInstallerInFolder",
+  resetLockfile: "mineanvil:resetLockfile",
+  getStartupError: "mineanvil:getStartupError",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -202,6 +204,21 @@ export interface ShowInstallerInFolderResult {
   readonly error?: string;
 }
 
+export interface ResetLockfileResult {
+  readonly ok: boolean;
+  readonly error?: string;
+  readonly failure?: FailureInfo;
+}
+
+export interface GetStartupErrorResult {
+  readonly error: {
+    readonly error: string;
+    readonly expectedVersion?: string;
+    readonly foundVersion?: string;
+    readonly lockfilePath?: string;
+  } | null;
+}
+
 /**
  * API exposed to the renderer via `contextBridge.exposeInMainWorld`.
  * The renderer should never import from `electron` directly.
@@ -272,6 +289,12 @@ export interface MineAnvilApi {
 
   /** Show downloaded installer file in Explorer (Electron/Windows only). */
   showInstallerInFolder(installerPath: string): Promise<ShowInstallerInFolderResult>;
+
+  /** Reset (delete and regenerate) the lockfile (Electron/Windows only). */
+  resetLockfile(): Promise<ResetLockfileResult>;
+
+  /** Get startup error (lockfile mismatch) if any (Electron/Windows only). */
+  getStartupError(): Promise<GetStartupErrorResult>;
 }
 
 declare global {

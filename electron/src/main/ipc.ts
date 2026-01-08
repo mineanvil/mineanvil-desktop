@@ -28,11 +28,12 @@ import { DEFAULT_RUNTIME_MANIFEST, getManagedRuntimeStatus } from "./runtime/man
 import { ensureDefaultInstance } from "./instances/instances";
 import { ensureVanillaInstalled } from "./minecraft/install";
 import { buildVanillaLaunchCommand, launchVanilla } from "./minecraft/launch";
-import { updateManifestWithMinecraftVersion } from "./pack/packManifestLoader";
-import { loadOrGenerateLockfile } from "./pack/packLockfileLoader";
+import { updateManifestWithMinecraftVersion, loadOrCreatePackManifest } from "./pack/packManifestLoader";
+import { loadOrGenerateLockfile, resetLockfile } from "./pack/packLockfileLoader";
 import { formatJsonLine, isVerboseEnabled, redactSecrets, type LogEntry } from "../shared/logging";
 import { getMsClientId } from "../shared/msAuthConfig";
 import { logsDir as getLogsDir } from "./paths";
+import { startupLockfileError, clearStartupLockfileError } from "./main";
 
 let rendererLogStream: WriteStream | null = null;
 
@@ -1181,6 +1182,65 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
       const msg = e instanceof Error ? e.message : String(e);
       return { ok: false, error: `Could not show installer in folder: ${msg}` } as const;
     }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.resetLockfile, async () => {
+    try {
+      const instanceId = "default"; // Use default instance
+
+      // Load the current manifest
+      const manifestResult = await loadOrCreatePackManifest(instanceId);
+      if (!manifestResult.ok) {
+        const msg = manifestResult.error;
+        return {
+          ok: false,
+          error: msg,
+          failure: {
+            category: "LAUNCH" as const,
+            kind: "PERMANENT" as const,
+            canRetry: false,
+            userMessage: "Could not load Minecraft configuration. Please try again.",
+          },
+        } as const;
+      }
+
+      // Reset the lockfile
+      const resetResult = await resetLockfile(manifestResult.manifest, instanceId);
+      if (!resetResult.ok) {
+        const msg = resetResult.error;
+        return {
+          ok: false,
+          error: msg,
+          failure: {
+            category: "LAUNCH" as const,
+            kind: "TEMPORARY" as const,
+            canRetry: true,
+            userMessage: "Reset didn't work this time. Please try again.",
+          },
+        } as const;
+      }
+
+      // Clear the startup error so it doesn't reappear after reload
+      clearStartupLockfileError();
+
+      return { ok: true } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        ok: false,
+        error: `Reset failed: ${msg}`,
+        failure: {
+          category: "LAUNCH" as const,
+          kind: "TEMPORARY" as const,
+          canRetry: true,
+          userMessage: "Reset didn't work this time. Please try again.",
+        },
+      } as const;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.getStartupError, async () => {
+    return { error: startupLockfileError } as const;
   });
 }
 

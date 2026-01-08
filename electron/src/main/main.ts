@@ -17,61 +17,26 @@ import { registerIpcHandlers } from "./ipc";
 import { validateRequiredConfig } from "./config";
 import { resolveAndValidateJavaAtStartup } from "./java";
 import { loadOrCreatePackManifest } from "./pack/packManifestLoader";
-import { loadOrGenerateLockfile } from "./pack/packLockfileLoader";
+import { loadOrGenerateLockfile, packLockfilePath } from "./pack/packLockfileLoader";
 import { installFromLockfile } from "./install/deterministicInstaller";
 
 /**
- * Format lockfile error messages into parent-readable text with actionable next steps.
+ * Startup error state (lockfile mismatch/corruption).
+ * If present, the app will continue to open but show a reset modal.
  */
-function formatLockfileErrorMessage(error: string): string {
-  const lowerError = error.toLowerCase();
+export let startupLockfileError: {
+  error: string;
+  expectedVersion?: string;
+  foundVersion?: string;
+  lockfilePath?: string;
+} | null = null;
 
-  // Lockfile corruption: unrecoverable, needs manual intervention
-  if (lowerError.includes("corrupt") || lowerError.includes("invalid") || lowerError.includes("parse")) {
-    return [
-      "Minecraft Installation Configuration Is Corrupted",
-      "",
-      "The installation configuration file is corrupted and cannot be used.",
-      "",
-      "Next steps:",
-      "• Close MineAnvil",
-      "• Delete the corrupted configuration file",
-      "  (Location: %APPDATA%\\MineAnvil\\instances\\default\\pack\\lock.json)",
-      "• Restart MineAnvil to regenerate the configuration",
-      "• Contact support if the problem continues",
-    ].join("\n");
-  }
-
-  // Version mismatch: unrecoverable, needs manual intervention
-  if (lowerError.includes("version mismatch") || lowerError.includes("mismatch")) {
-    return [
-      "Minecraft Version Mismatch",
-      "",
-      "The installation configuration does not match the expected Minecraft version.",
-      "",
-      "Next steps:",
-      "• Close MineAnvil",
-      "• Delete the configuration file to regenerate it",
-      "  (Location: %APPDATA%\\MineAnvil\\instances\\default\\pack\\lock.json)",
-      "• Restart MineAnvil",
-      "• Contact support if the problem continues",
-    ].join("\n");
-  }
-
-  // Generic lockfile error
-  return [
-    "Minecraft Installation Configuration Error",
-    "",
-    "An error occurred while loading the installation configuration.",
-    "",
-    "Next steps:",
-    "• Close MineAnvil and try again",
-    "• If the problem continues, delete the configuration file and restart",
-    "  (Location: %APPDATA%\\MineAnvil\\instances\\default\\pack\\lock.json)",
-    "• Contact support if you need help",
-    "",
-    `Technical details: ${error}`,
-  ].join("\n");
+/**
+ * Clear the startup lockfile error.
+ * This should be called after successful lockfile reset.
+ */
+export function clearStartupLockfileError(): void {
+  startupLockfileError = null;
 }
 
 /**
@@ -454,19 +419,37 @@ app.whenReady().then(async () => {
     const lockfileResult = await loadOrGenerateLockfile(manifest.manifest);
     if (!lockfileResult.ok) {
       const msg = lockfileResult.error;
-      const userMessage = formatLockfileErrorMessage(msg);
-      dialog.showErrorBox("MineAnvil — Lockfile Error", userMessage);
+
+      // Extract version information from error message if available
+      const versionMismatchMatch = msg.match(/expected "([^"]+)", found "([^"]+)"/);
+      const expectedVersion = versionMismatchMatch?.[1];
+      const foundVersion = versionMismatchMatch?.[2];
+
+      // Store startup error for renderer to display reset modal
+      startupLockfileError = {
+        error: msg,
+        expectedVersion,
+        foundVersion,
+        lockfilePath: packLockfilePath("default"),
+      };
+
       console.error(
         JSON.stringify({
           ts: new Date().toISOString(),
           level: "error",
           area: "startup",
           message: `lockfile operation failed: ${msg}`,
+          meta: {
+            expectedVersion,
+            foundVersion,
+            lockfilePath: startupLockfileError.lockfilePath,
+          },
         }),
       );
-      app.exit(1);
-      return;
-    }
+
+      // Continue to create window so user can see reset modal
+      // Skip installation since lockfile is invalid
+    } else {
 
     console.info(
       JSON.stringify({
@@ -514,6 +497,7 @@ app.whenReady().then(async () => {
         },
       }),
     );
+    }
   } else {
     console.info(
       JSON.stringify({
