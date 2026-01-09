@@ -10,9 +10,8 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as os from "node:os";
 import { spawn } from "node:child_process";
-import { shell } from "electron";
+import { app, shell } from "electron";
 import * as https from "node:https";
 import { URL } from "node:url";
 import { createWriteStream } from "node:fs";
@@ -30,6 +29,29 @@ export interface InstallProgress {
 }
 
 export type InstallProgressCallback = (progress: InstallProgress) => void;
+
+/**
+ * SP1.1 invariant: MineAnvil never executes installers from %TEMP% (including WinGet cache).
+ * All installers must be executed only from a MineAnvil-owned stable directory under %APPDATA%\\MineAnvil.
+ */
+function getInstallersDir(): string {
+  if (process.platform === "win32" && typeof process.env.APPDATA === "string" && process.env.APPDATA.length > 0) {
+    return path.join(process.env.APPDATA, "MineAnvil", "installers");
+  }
+  // Fallback: still stable, MineAnvil-owned (Electron userData), not %TEMP%.
+  return path.join(app.getPath("userData"), "installers");
+}
+
+async function ensureInstallersDir(): Promise<string> {
+  const dir = getInstallersDir();
+  await fs.mkdir(dir, { recursive: true });
+  return dir;
+}
+
+async function requireNonZeroFile(p: string): Promise<void> {
+  const st = await fs.stat(p);
+  if (!st.isFile() || st.size <= 0) throw new Error("Installer file is empty or invalid");
+}
 
 /**
  * Install Minecraft Launcher via WinGet.
@@ -143,10 +165,9 @@ export async function downloadOfficialInstaller(
   // For now, prefer Windows 10/11 installer
   const installerUrl = OFFICIAL_INSTALLER_URL_WIN10_11;
 
-  // Create temp directory for download
-  const tempDir = path.join(os.tmpdir(), "mineanvil-installer");
-  await fs.mkdir(tempDir, { recursive: true });
-  const installerPath = path.join(tempDir, "MinecraftInstaller.msix");
+  // Download into a MineAnvil-owned directory (never %TEMP%).
+  const dir = await ensureInstallersDir();
+  const installerPath = path.join(dir, "MinecraftInstaller.msix");
 
   onProgress({ state: "downloading", message: "Downloading the official installer..." });
 
@@ -195,7 +216,16 @@ export async function downloadOfficialInstaller(
         out.on("finish", () => {
           out.close(() => {
             onProgress({ state: "downloading", message: "Download complete" });
-            resolve({ ok: true, installerPath });
+            void (async () => {
+              try {
+                await requireNonZeroFile(installerPath);
+                console.info(`[installer] official installer saved: ${installerPath}`);
+                resolve({ ok: true, installerPath });
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                resolve({ ok: false, error: `Downloaded installer is invalid: ${msg}` });
+              }
+            })();
           });
         });
 
@@ -328,12 +358,24 @@ export async function installViaLocalInstaller(
     return { ok: false, error: "Installer file not found" };
   }
 
+  // Copy into a MineAnvil-owned directory so we never execute from WinGet/%TEMP%.
+  const dir = await ensureInstallersDir();
   const ext = path.extname(installerPath).toLowerCase();
   const isMsi = ext === ".msi";
   const isExe = ext === ".exe";
 
   if (!isMsi && !isExe) {
     return { ok: false, error: "Installer must be a .exe or .msi file" };
+  }
+
+  const stablePath = path.join(dir, `MinecraftInstaller${ext}`);
+  try {
+    await fs.copyFile(installerPath, stablePath);
+    await requireNonZeroFile(stablePath);
+    console.info(`[installer] executing local installer from stable path: ${stablePath}`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: `Could not copy installer to a safe location: ${msg}` };
   }
 
   onProgress({ state: "installing", message: "Opening the installer..." });
@@ -344,7 +386,7 @@ export async function installViaLocalInstaller(
     if (isMsi) {
       // Run MSI installer interactively (not silent - requires user interaction)
       // DO NOT add /qn or any silent flag
-      child = spawn("msiexec", ["/i", installerPath], {
+      child = spawn("msiexec", ["/i", stablePath], {
         stdio: ["ignore", "pipe", "pipe"],
       });
     } else {
@@ -352,7 +394,7 @@ export async function installViaLocalInstaller(
       // Use shell: true to open with Windows default handler
       // detached: false to keep it attached to parent
       // stdio: "ignore" to avoid blocking
-      child = spawn(installerPath, [], {
+      child = spawn(stablePath, [], {
         shell: true,
         detached: false,
         stdio: "ignore",
@@ -474,18 +516,9 @@ export async function installMinecraftLauncher(
     return { ...pollResult, usedMethod: "store" };
   }
 
-  // Try WinGet first
-  const hasWinGet = await isWinGetAvailable();
-  if (hasWinGet) {
-    const wingetResult = await installViaWinGet(onProgress);
-    if (wingetResult.ok) {
-      return { ...wingetResult, usedMethod: "winget" };
-    }
-    // WinGet failed, fall back to official download
-  }
-
-  // Fallback to official installer download (aka.ms)
-  onProgress({ state: "preparing", message: "We couldn't use the built-in installer. Trying the official installer..." });
+  // Deterministic fix: do not rely on WinGet Temp cache paths.
+  // Always use the official installer download (aka.ms) into MineAnvil-owned storage.
+  onProgress({ state: "preparing", message: "Downloading the official installer..." });
   const officialResult = await installViaOfficialDownload(onProgress);
   if (officialResult.ok) {
     return { ...officialResult, usedMethod: "official" };
