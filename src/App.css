@@ -1217,3 +1217,220 @@
   font-size: 0.9375rem;
   line-height: 1.6;
 }
+
+/* SP3.6 — Parent Home UX Refresh (Phase A + Phase B layout) */
+.setup-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+
+.setup-card {
+  width: 100%;
+  max-width: 560px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.setup-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.setup-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.setup-title {
+  font-size: 1.75rem;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.02em;
+}
+
+.setup-subtitle {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.6;
+}
+
+.setup-secondary {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.6;
+}
+
+.setup-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.setup-actions-column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.setup-error {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+}
+
+.setup-progress {
+  margin-top: 1rem;
+}
+
+.setup-progress-track {
+  margin-top: 0.75rem;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.setup-progress-bar {
+  height: 100%;
+  background: rgba(34, 197, 94, 0.65);
+  transition: width 200ms ease;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.app-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-user-name {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.status-badge {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.status-badge-ready {
+  background: rgba(34, 197, 94, 0.15);
+  color: rgba(190, 255, 210, 0.95);
+}
+
+.status-badge-demo {
+  background: rgba(251, 191, 36, 0.15);
+  color: rgba(255, 235, 170, 0.95);
+}
+
+.app-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tabs-bar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.tab-button {
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 650;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.tab-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.tab-button-active {
+  background: rgba(100, 108, 255, 0.2);
+  color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(100, 108, 255, 0.25);
+}
+
+.app-content {
+  flex: 1;
+}
+
+.worlds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.world-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.world-row-name {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.world-row-meta {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.world-row-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.world-row-badge {
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.75);
+}

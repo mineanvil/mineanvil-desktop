@@ -67,6 +67,9 @@ Setup is a linear flow with clear states. Users progress through these states on
 
 **User Intent:** Understand what this is and begin setup
 
+**Future Proof**
+- This page may become a point where the user may initiate other game processes, other than MineCraft.
+
 ---
 
 ### State 1: Microsoft Sign-In
@@ -189,6 +192,7 @@ Once setup is complete, users enter the main application.
 - Launches Minecraft using automatic profile
 - If checks or downloads are required, shows progress
 - No configuration options visible
+- HOME starts Minecraft without selecting a specific world; world selection happens in the WORLDS tab.
 
 **Mental Model:** "This is where I start Minecraft"
 

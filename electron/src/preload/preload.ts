@@ -14,7 +14,7 @@
  */
 
 import { contextBridge, ipcRenderer } from "electron";
-import { IPC_CHANNELS, type MineAnvilApi, type MinecraftLauncherInstallProgress } from "../shared/ipc-types";
+import { IPC_CHANNELS, type MineAnvilApi, type MinecraftLauncherInstallProgress, type MinecraftVanillaProgress } from "../shared/ipc-types";
 
 const api: MineAnvilApi = {
   ping: async () => ipcRenderer.invoke(IPC_CHANNELS.ping),
@@ -22,6 +22,10 @@ const api: MineAnvilApi = {
   authGetStatus: async () => ipcRenderer.invoke(IPC_CHANNELS.authGetStatus),
   authSignIn: async () => ipcRenderer.invoke(IPC_CHANNELS.authSignIn),
   authSignOut: async () => ipcRenderer.invoke(IPC_CHANNELS.authSignOut),
+  gamesList: async () => ipcRenderer.invoke(IPC_CHANNELS.gamesList),
+  gameGetStatus: async (gameId) => ipcRenderer.invoke(IPC_CHANNELS.gameGetStatus, gameId),
+  gamePrepare: async (gameId) => ipcRenderer.invoke(IPC_CHANNELS.gamePrepare, gameId),
+  gameLaunch: async (gameId, mode) => ipcRenderer.invoke(IPC_CHANNELS.gameLaunch, gameId, mode),
   getLaunchPlan: async () => ipcRenderer.invoke(IPC_CHANNELS.getLaunchPlan),
   ensureRuntime: async () => ipcRenderer.invoke(IPC_CHANNELS.ensureRuntime),
   getRuntimeStatus: async () => ipcRenderer.invoke(IPC_CHANNELS.getRuntimeStatus),
@@ -43,7 +47,7 @@ const api: MineAnvilApi = {
 
 contextBridge.exposeInMainWorld("mineanvil", api);
 
-// Expose progress event listener helper
+// Expose progress event listener helper (Minecraft Launcher installer)
 contextBridge.exposeInMainWorld("mineanvilInstallProgress", {
   onProgress: (callback: (progress: MinecraftLauncherInstallProgress) => void) => {
     ipcRenderer.on("mineanvil:installProgress", (_event, progress: MinecraftLauncherInstallProgress) => {
@@ -52,6 +56,18 @@ contextBridge.exposeInMainWorld("mineanvilInstallProgress", {
   },
   removeAllListeners: () => {
     ipcRenderer.removeAllListeners("mineanvil:installProgress");
+  },
+});
+
+// Expose progress event listener helper (vanilla Minecraft install/prepare)
+contextBridge.exposeInMainWorld("mineanvilMinecraftProgress", {
+  onProgress: (callback: (progress: MinecraftVanillaProgress) => void) => {
+    ipcRenderer.on(IPC_CHANNELS.minecraftVanillaProgress, (_event, progress: MinecraftVanillaProgress) => {
+      callback(progress);
+    });
+  },
+  removeAllListeners: () => {
+    ipcRenderer.removeAllListeners(IPC_CHANNELS.minecraftVanillaProgress);
   },
 });
 

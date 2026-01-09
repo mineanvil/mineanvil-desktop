@@ -16,6 +16,13 @@ import {
   type FailureCategory,
   type FailureInfo,
   type FailureKind,
+  type GameId,
+  type GameLaunchResult,
+  type GameMode,
+  type GamePrepareResult,
+  type GameReadiness,
+  type GameGetStatusResult,
+  type GamesListResult,
   type OwnershipState,
 } from "../shared/ipc-types";
 import { refreshMicrosoftAccessToken, startMicrosoftSignIn } from "./auth/oauth";
@@ -657,6 +664,176 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     appendRendererLogEntry(entry);
     return { ok: true } as const;
   });
+
+  const unknownGameFailure = (gameId: string): FailureInfo =>
+    makeFailure({
+      category: "LAUNCH",
+      kind: "PERMANENT",
+      canRetry: false,
+      userMessage: `Unknown game: ${gameId}`,
+    });
+
+  const minecraftGetReadiness = async (): Promise<{
+    readiness: GameReadiness;
+    message?: string;
+    username?: string;
+    demoAvailable: boolean;
+  }> => {
+    const tokens = await loadValidMicrosoftTokens();
+    if (!tokens) {
+      return {
+        readiness: "blocked",
+        message: "Sign in required",
+        demoAvailable: false,
+      };
+    }
+
+    try {
+      const { mcAccessToken } = await getMinecraftAccessToken(tokens.access_token);
+      const entitlements = await getEntitlements(mcAccessToken);
+      const owned = checkJavaOwnership(entitlements);
+
+      if (!owned.owned) {
+        return {
+          readiness: "demo",
+          message: "Minecraft license not found",
+          demoAvailable: true,
+        };
+      }
+
+      const profile = await getProfile(mcAccessToken);
+      return {
+        readiness: "ready",
+        message: "Ready",
+        username: profile.name,
+        demoAvailable: true,
+      };
+    } catch {
+      // Conservative: if we can't verify, allow demo as the safe fallback.
+      return {
+        readiness: "demo",
+        message: "Minecraft license could not be verified",
+        demoAvailable: true,
+      };
+    }
+  };
+
+  const minecraftPrepare = async (): Promise<GamePrepareResult> => {
+    try {
+      // Ensure runtime is available
+      await resolveJavaRuntimePreferManaged();
+
+      // Ensure vanilla Minecraft is installed + deterministic manifest/lockfile exists
+      const instanceId = "default";
+      const instance = await ensureDefaultInstance();
+      const res = await ensureVanillaInstalled(instance.path, "latest");
+      const pinnedVersionId = res.versionId;
+
+      const manifestUpdateResult = await updateManifestWithMinecraftVersion(pinnedVersionId, instanceId);
+      if (!manifestUpdateResult.ok) {
+        const msg = manifestUpdateResult.error;
+        return { ok: false, error: msg, failure: launchFailureFromError(new Error(msg)) } as const;
+      }
+
+      const lockfileResult = await loadOrGenerateLockfile(manifestUpdateResult.manifest, instanceId);
+      if (!lockfileResult.ok) {
+        const msg = lockfileResult.error;
+        return { ok: false, error: msg, failure: launchFailureFromError(new Error(msg)) } as const;
+      }
+
+      return { ok: true } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const failure = looksLikeRuntimeFailure(msg) ? runtimeFailureFromError(e) : launchFailureFromError(e);
+      return { ok: false, error: msg, failure } as const;
+    }
+  };
+
+  const minecraftLaunch = async (mode: GameMode): Promise<GameLaunchResult> => {
+    try {
+      const launchMode = mode === "demo" ? "demo" : "normal";
+      let auth:
+        | { playerName: string; uuid: string; mcAccessToken: string }
+        | undefined = undefined;
+
+      if (launchMode === "normal") {
+        try {
+          const owned = await requireOwnedMinecraftJava();
+          auth = {
+            playerName: owned.profile.name,
+            uuid: owned.profile.id,
+            mcAccessToken: owned.mcAccessToken,
+          };
+        } catch (e) {
+          const failure = ownershipFailureFromError(e);
+          dialog.showErrorBox("MineAnvil — Launch blocked", failure.userMessage);
+          return { ok: false, error: failure.userMessage, failure } as const;
+        }
+      }
+
+      const res = await launchVanilla({
+        versionIdOrLatest: "latest",
+        auth,
+        launchMode,
+      });
+
+      if (res.ok) return { ok: true, pid: res.pid } as const;
+
+      const msg = res.error ?? "Launch failed";
+      const failure = looksLikeRuntimeFailure(msg)
+        ? runtimeFailureFromError(new Error(msg))
+        : launchFailureFromError(new Error(msg));
+      return { ok: false, error: msg, failure } as const;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const failure = looksLikeRuntimeFailure(msg)
+        ? runtimeFailureFromError(e)
+        : launchFailureFromError(e);
+      return { ok: false, error: msg, failure } as const;
+    }
+  };
+
+  ipcMain.handle(IPC_CHANNELS.gamesList, async (): Promise<GamesListResult> => {
+    return { ok: true, games: [{ id: "minecraft", label: "Minecraft" }] } as const;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.gameGetStatus, async (_evt, gameId: GameId): Promise<GameGetStatusResult> => {
+    if (gameId !== "minecraft") {
+      const failure = unknownGameFailure(String(gameId));
+      return { ok: false, error: failure.userMessage, failure } as const;
+    }
+    const s = await minecraftGetReadiness();
+    return {
+      ok: true,
+      status: {
+        gameId: "minecraft",
+        readiness: s.readiness,
+        message: s.message,
+        username: s.username,
+        demoAvailable: s.demoAvailable,
+      },
+    } as const;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.gamePrepare, async (_evt, gameId: GameId): Promise<GamePrepareResult> => {
+    if (gameId !== "minecraft") {
+      const failure = unknownGameFailure(String(gameId));
+      return { ok: false, error: failure.userMessage, failure } as const;
+    }
+    return await minecraftPrepare();
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.gameLaunch,
+    async (_evt, gameId: GameId, mode: GameMode): Promise<GameLaunchResult> => {
+      if (gameId !== "minecraft") {
+        const failure = unknownGameFailure(String(gameId));
+        return { ok: false, error: failure.userMessage, failure } as const;
+      }
+      return await minecraftLaunch(mode);
+    },
+  );
+
   ipcMain.handle(IPC_CHANNELS.authGetStatus, async () => {
     const verbose = isVerboseEnabled(process.env);
     let tokens = await loadTokens();
@@ -857,15 +1034,6 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
   ipcMain.handle(IPC_CHANNELS.installVanilla, async (_evt, version: string) => {
     const instanceId = "default";
     try {
-      // Hard gate: must own Minecraft: Java Edition.
-      try {
-        await requireOwnedMinecraftJava();
-      } catch (e) {
-        const failure = ownershipFailureFromError(e);
-        dialog.showErrorBox("MineAnvil — Launch blocked", failure.userMessage);
-        return { ok: false, error: failure.userMessage, failure } as const;
-      }
-
       const instance = await ensureDefaultInstance();
       const res = await ensureVanillaInstalled(instance.path, version);
       
@@ -997,27 +1165,30 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null): void {
     IPC_CHANNELS.launchVanilla,
     async (_evt, version: string, launchMode?: "normal" | "demo") => {
       try {
+        const resolvedLaunchMode = launchMode ?? "normal";
         let auth:
           | { playerName: string; uuid: string; mcAccessToken: string }
           | undefined = undefined;
 
-        try {
-          const owned = await requireOwnedMinecraftJava();
-          auth = {
-            playerName: owned.profile.name,
-            uuid: owned.profile.id,
-            mcAccessToken: owned.mcAccessToken,
-          };
-        } catch (e) {
-          const failure = ownershipFailureFromError(e);
-          dialog.showErrorBox("MineAnvil — Launch blocked", failure.userMessage);
-          return { ok: false, error: failure.userMessage, failure } as const;
+        if (resolvedLaunchMode === "normal") {
+          try {
+            const owned = await requireOwnedMinecraftJava();
+            auth = {
+              playerName: owned.profile.name,
+              uuid: owned.profile.id,
+              mcAccessToken: owned.mcAccessToken,
+            };
+          } catch (e) {
+            const failure = ownershipFailureFromError(e);
+            dialog.showErrorBox("MineAnvil — Launch blocked", failure.userMessage);
+            return { ok: false, error: failure.userMessage, failure } as const;
+          }
         }
 
         const res = await launchVanilla({
           versionIdOrLatest: version,
           auth,
-          launchMode: launchMode ?? "normal",
+          launchMode: resolvedLaunchMode,
         });
         if (res.ok) return res;
 

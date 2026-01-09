@@ -18,6 +18,12 @@ export const IPC_CHANNELS = {
   authGetStatus: "mineanvil:authGetStatus",
   authSignIn: "mineanvil:authSignIn",
   authSignOut: "mineanvil:authSignOut",
+  gamesList: "mineanvil:gamesList",
+  gameGetStatus: "mineanvil:gameGetStatus",
+  gamePrepare: "mineanvil:gamePrepare",
+  gameLaunch: "mineanvil:gameLaunch",
+  /** Progress event stream for vanilla Minecraft install/prepare (client/libraries/assets). */
+  minecraftVanillaProgress: "mineanvil:minecraftVanillaProgress",
   getLaunchPlan: "mineanvil:getLaunchPlan",
   ensureRuntime: "mineanvil:ensureRuntime",
   getRuntimeStatus: "mineanvil:getRuntimeStatus",
@@ -84,6 +90,14 @@ export type OwnershipState =
   | "UNVERIFIED_APP_NOT_APPROVED"
   | "UNVERIFIED_TEMPORARY";
 
+/**
+ * Multi-game seam (internal, Minecraft-only for now).
+ * We intentionally keep this generic so adding another game later is additive.
+ */
+export type GameId = "minecraft";
+export type GameMode = "full" | "demo";
+export type GameReadiness = "ready" | "demo" | "blocked" | "unknown";
+
 export type AuthStatus =
   | {
       readonly signedIn: false;
@@ -106,6 +120,50 @@ export type AuthStatus =
 
 export interface AuthSignInResult {
   readonly ok: boolean;
+  readonly error?: string;
+  readonly failure?: FailureInfo;
+}
+
+export interface GameDescriptor {
+  readonly id: GameId;
+  /** User-facing label (not shown in UI yet). */
+  readonly label: string;
+}
+
+export interface GamesListResult {
+  readonly ok: boolean;
+  readonly games?: readonly GameDescriptor[];
+  readonly error?: string;
+  readonly failure?: FailureInfo;
+}
+
+export interface GameStatus {
+  readonly gameId: GameId;
+  readonly readiness: GameReadiness;
+  /** Optional user-facing status detail (plain language). */
+  readonly message?: string;
+  /** Optional signed-in name if known. */
+  readonly username?: string;
+  /** Indicates whether Demo Mode is available for this game. */
+  readonly demoAvailable?: boolean;
+}
+
+export interface GameGetStatusResult {
+  readonly ok: boolean;
+  readonly status?: GameStatus;
+  readonly error?: string;
+  readonly failure?: FailureInfo;
+}
+
+export interface GamePrepareResult {
+  readonly ok: boolean;
+  readonly error?: string;
+  readonly failure?: FailureInfo;
+}
+
+export interface GameLaunchResult {
+  readonly ok: boolean;
+  readonly pid?: number;
   readonly error?: string;
   readonly failure?: FailureInfo;
 }
@@ -163,6 +221,34 @@ export type MinecraftLauncherInstallProgressState = "preparing" | "downloading" 
 export interface MinecraftLauncherInstallProgress {
   readonly state: MinecraftLauncherInstallProgressState;
   readonly message: string;
+  readonly error?: string;
+}
+
+export type MinecraftVanillaProgressStage =
+  | "starting"
+  | "resolving_version"
+  | "downloading_client"
+  | "downloading_libraries"
+  | "downloading_assets"
+  | "finalizing"
+  | "complete"
+  | "error";
+
+export interface MinecraftVanillaProgress {
+  readonly stage: MinecraftVanillaProgressStage;
+  /** Human-readable status line for the setup UI. */
+  readonly message: string;
+  /** Overall percent (0-100) for the setup progress bar. */
+  readonly overallPercent?: number;
+  /** Current file download details (when applicable). */
+  readonly current?: {
+    readonly url: string;
+    readonly destPath: string;
+    readonly bytes: number;
+    readonly totalBytes?: number;
+    readonly filePercent?: number;
+  };
+  /** Non-fatal or fatal error string for diagnostics. */
   readonly error?: string;
 }
 
@@ -245,6 +331,21 @@ export interface MineAnvilApi {
   /** Sign out (Electron/Windows only). */
   authSignOut(): Promise<AuthSignInResult>;
 
+  /** List available games (Minecraft only for now). */
+  gamesList(): Promise<GamesListResult>;
+
+  /** Get high-level readiness for a game (Minecraft only for now). */
+  gameGetStatus(gameId: GameId): Promise<GameGetStatusResult>;
+
+  /**
+   * Prepare a game to run (best-effort; should not hard-block demo mode).
+   * Minecraft implementation uses existing runtime + vanilla install steps.
+   */
+  gamePrepare(gameId: GameId): Promise<GamePrepareResult>;
+
+  /** Launch a game in full or demo mode (Minecraft only for now). */
+  gameLaunch(gameId: GameId, mode: GameMode): Promise<GameLaunchResult>;
+
   /** Build a dry-run launch plan (Electron/Windows only). */
   getLaunchPlan(): Promise<GetLaunchPlanResult>;
 
@@ -306,6 +407,22 @@ declare global {
      * this object will be absent until we add a browser-safe adapter later.
      */
     mineanvil?: MineAnvilApi;
+    /**
+     * Preload-exposed vanilla Minecraft install progress stream.
+     * Present only in Electron runs.
+     */
+    mineanvilMinecraftProgress?: {
+      onProgress: (callback: (progress: MinecraftVanillaProgress) => void) => void;
+      removeAllListeners: () => void;
+    };
+    /**
+     * Back-compat: launcher install progress stream.
+     * Present only in Electron runs.
+     */
+    mineanvilInstallProgress?: {
+      onProgress: (callback: (progress: MinecraftLauncherInstallProgress) => void) => void;
+      removeAllListeners: () => void;
+    };
   }
 }
 
